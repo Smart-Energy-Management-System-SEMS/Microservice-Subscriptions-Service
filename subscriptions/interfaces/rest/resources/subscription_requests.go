@@ -1,8 +1,9 @@
 package resources
 
 type CreateSubscriptionRequest struct {
-	UserID string `json:"user_id" binding:"required"`
-	PlanID string `json:"plan_id" binding:"required"`
+	UserID           string `json:"user_id" binding:"required"`
+	PlanID           string `json:"plan_id" binding:"required"`
+	StripeCustomerID string `json:"stripe_customer_id"`
 }
 
 type ChangePlanRequest struct {

@@ -18,5 +18,5 @@ func ToUpdatePlanCommand(planID string, r resources.UpdatePlanRequest) commands.
 }
 
 func ToCreateSubscriptionCommand(r resources.CreateSubscriptionRequest) commands.CreateSubscriptionCommand {
-	return commands.CreateSubscriptionCommand{UserID: r.UserID, PlanID: r.PlanID}
+	return commands.CreateSubscriptionCommand{UserID: r.UserID, PlanID: r.PlanID, StripeCustomerID: r.StripeCustomerID}
 }
