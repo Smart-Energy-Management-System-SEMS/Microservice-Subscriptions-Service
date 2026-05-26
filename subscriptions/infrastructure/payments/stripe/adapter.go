@@ -18,11 +18,25 @@ func NewAdapter(secretKey string) *Adapter {
 	return &Adapter{enabled: false}
 }
 
-func (a *Adapter) CreateSubscription(_ entities.Subscription) (string, error) {
+func (a *Adapter) CreateSubscription(_ entities.Subscription, stripeCustomerID string, stripePriceID string) (string, error) {
 	if !a.enabled {
 		return "", nil
 	}
-	return "", errors.New("stripe create subscription requires customer and price mapping")
+	if stripeCustomerID == "" || stripePriceID == "" {
+		return "", errors.New("stripe_customer_id and stripe_price_id are required for stripe subscription")
+	}
+
+	params := &stripe.SubscriptionParams{
+		Customer: stripe.String(stripeCustomerID),
+		Items: []*stripe.SubscriptionItemsParams{
+			{Price: stripe.String(stripePriceID)},
+		},
+	}
+	sub, err := subscription.New(params)
+	if err != nil {
+		return "", err
+	}
+	return sub.ID, nil
 }
 
 func (a *Adapter) CancelSubscription(stripeSubscriptionID string) error {
@@ -33,9 +47,28 @@ func (a *Adapter) CancelSubscription(stripeSubscriptionID string) error {
 	return err
 }
 
-func (a *Adapter) ChangePlan(stripeSubscriptionID, _ string) error {
+func (a *Adapter) ChangePlan(stripeSubscriptionID, targetPriceID string) error {
 	if !a.enabled || stripeSubscriptionID == "" {
 		return nil
 	}
-	return errors.New("stripe change plan requires item id and price mapping")
+	if targetPriceID == "" {
+		return errors.New("target stripe price id is required")
+	}
+	current, err := subscription.Get(stripeSubscriptionID, nil)
+	if err != nil {
+		return err
+	}
+	if len(current.Items.Data) == 0 {
+		return errors.New("stripe subscription has no items to update")
+	}
+	params := &stripe.SubscriptionParams{
+		Items: []*stripe.SubscriptionItemsParams{
+			{
+				ID:    stripe.String(current.Items.Data[0].ID),
+				Price: stripe.String(targetPriceID),
+			},
+		},
+	}
+	_, err = subscription.Update(stripeSubscriptionID, params)
+	return err
 }

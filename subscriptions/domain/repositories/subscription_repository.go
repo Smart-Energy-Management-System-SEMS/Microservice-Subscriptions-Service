@@ -7,4 +7,5 @@ type SubscriptionRepository interface {
 	Update(subscription *entities.Subscription) error
 	FindByID(subscriptionID string) (*entities.Subscription, error)
 	FindByUserID(userID string) ([]entities.Subscription, error)
+	FindByStripeSubscriptionID(stripeSubscriptionID string) (*entities.Subscription, error)
 }
