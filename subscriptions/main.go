@@ -5,24 +5,23 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"microservice-subscriptions-service/subscriptions/application/commandservices"
-	"microservice-subscriptions-service/subscriptions/application/outboundservices"
 	"microservice-subscriptions-service/subscriptions/application/queryservices"
-	"microservice-subscriptions-service/subscriptions/infrastructure/configuration"
+	appconfig "microservice-subscriptions-service/subscriptions/infrastructure/configuration"
 	kafkainfra "microservice-subscriptions-service/subscriptions/infrastructure/messaging/kafka"
 	stripeinfra "microservice-subscriptions-service/subscriptions/infrastructure/payments/stripe"
-	"microservice-subscriptions-service/subscriptions/infrastructure/persistence/gorm/configuration"
+	dbconfig "microservice-subscriptions-service/subscriptions/infrastructure/persistence/gorm/configuration"
 	gormrepo "microservice-subscriptions-service/subscriptions/infrastructure/persistence/gorm/repositories"
 	"microservice-subscriptions-service/subscriptions/interfaces/rest/controllers"
 )
 
 func Start() error {
-	cfg := configuration.Load()
-	db, err := configuration2.NewDatabase(cfg.DatabaseURL)
+	cfg := appconfig.Load()
+	db, err := dbconfig.NewDatabase(cfg.DatabaseURL)
 	if err != nil {
 		return fmt.Errorf("database connection failed: %w", err)
 	}
 
-	if err = configuration2.AutoMigrate(db); err != nil {
+	if err = dbconfig.AutoMigrate(db); err != nil {
 		return fmt.Errorf("database migration failed: %w", err)
 	}
 
