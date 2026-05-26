@@ -46,6 +46,10 @@ Usa `.env.example` como plantilla y guarda tus secretos en `.env` (ignorado por 
 - `PATCH /api/v1/subscriptions/:subscriptionId/cancel`
 - `PATCH /api/v1/subscriptions/:subscriptionId/change-plan`
 
+### Webhooks
+
+- `POST /api/v1/webhooks/stripe`
+
 ## Estados de suscripcion
 
 - `ACTIVE`
@@ -75,4 +79,6 @@ Servicio por defecto en `http://localhost:8081`.
 
 - `user_id` proviene de IAM y se persiste sin FK cruzada.
 - `stripe_subscription_id` se guarda como referencia externa cuando aplique.
+- Para crear/cambiar suscripcion en Stripe se espera `STRIPE_PRICE_ID` en `plan_features.feature_code`.
+- `POST /api/v1/subscriptions` acepta `stripe_customer_id` para crear suscripcion real en Stripe.
 - No existen tablas de `payments`, `invoices`, `transactions` o `billing` en este servicio.
