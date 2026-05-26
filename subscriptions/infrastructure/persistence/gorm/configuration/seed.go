@@ -27,7 +27,7 @@ func SeedDefaultPlans(db *gorm.DB, cfg appconfig.AppConfig) error {
 			Description:   "Start monitoring at no cost",
 			Price:         0,
 			Currency:      "PEN",
-			BillingPeriod: "MONTHLY",
+			BillingPeriod: "monthly",
 			Features: []model.PlanFeatureModel{
 				feature("BASIC_DASHBOARD", "Basic energy dashboard", "enabled"),
 				feature("CONSUMPTION_ALERTS", "Essential consumption alerts", "enabled"),
@@ -40,7 +40,7 @@ func SeedDefaultPlans(db *gorm.DB, cfg appconfig.AppConfig) error {
 			Description:   "For active homes",
 			Price:         15,
 			Currency:      "PEN",
-			BillingPeriod: "MONTHLY",
+			BillingPeriod: "monthly",
 			Features: []model.PlanFeatureModel{
 				feature("FREE_INCLUDED", "Everything in Free", "enabled"),
 				feature("DEVICE_ANALYTICS", "Detailed device analytics", "enabled"),
@@ -54,7 +54,7 @@ func SeedDefaultPlans(db *gorm.DB, cfg appconfig.AppConfig) error {
 			Description:   "Advanced control and insights",
 			Price:         25,
 			Currency:      "PEN",
-			BillingPeriod: "MONTHLY",
+			BillingPeriod: "monthly",
 			Features: []model.PlanFeatureModel{
 				feature("PLUS_INCLUDED", "Everything in Plus", "enabled"),
 				feature("UNLIMITED_DEVICES", "Unlimited linked devices", "enabled"),
