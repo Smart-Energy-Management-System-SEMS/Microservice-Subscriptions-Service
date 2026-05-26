@@ -4,7 +4,7 @@ import "time"
 
 type SubscriptionPlanModel struct {
 	PlanID        string             `gorm:"type:uuid;primaryKey;column:plan_id"`
-	Name          string             `gorm:"size:100;not null"`
+	Name          string             `gorm:"size:100;not null;uniqueIndex:uni_subscription_plans_name"`
 	Description   string             `gorm:"type:text"`
 	Price         float64            `gorm:"type:numeric(10,2);not null"`
 	Currency      string             `gorm:"size:10;not null"`
