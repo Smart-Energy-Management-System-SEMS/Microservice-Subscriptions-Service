@@ -10,12 +10,13 @@ import (
 )
 
 type AppConfig struct {
-	ServerPort          string
-	DatabaseURL         string
-	StripeSecretKey     string
-	StripeWebhookSecret string
-	KafkaBrokers        []string
-	KafkaClientID       string
+	ServerPort           string
+	DatabaseURL          string
+	StripePublishableKey string
+	StripeSecretKey      string
+	StripeWebhookSecret  string
+	KafkaBrokers         []string
+	KafkaClientID        string
 }
 
 func Load() AppConfig {
@@ -26,12 +27,13 @@ func Load() AppConfig {
 	}
 
 	return AppConfig{
-		ServerPort:          getEnv("SERVER_PORT", "8081"),
-		DatabaseURL:         databaseURL,
-		StripeSecretKey:     os.Getenv("STRIPE_SECRET_KEY"),
-		StripeWebhookSecret: os.Getenv("STRIPE_WEBHOOK_SECRET"),
-		KafkaBrokers:        splitCSV(getEnv("KAFKA_BROKERS", "localhost:9092")),
-		KafkaClientID:       getEnv("KAFKA_CLIENT_ID", "subscriptions-service"),
+		ServerPort:           getEnv("SERVER_PORT", "8081"),
+		DatabaseURL:          databaseURL,
+		StripePublishableKey: os.Getenv("STRIPE_PUBLISHABLE_KEY"),
+		StripeSecretKey:      os.Getenv("STRIPE_SECRET_KEY"),
+		StripeWebhookSecret:  os.Getenv("STRIPE_WEBHOOK_SECRET"),
+		KafkaBrokers:         splitCSV(getEnv("KAFKA_BROKERS", "localhost:9092")),
+		KafkaClientID:        getEnv("KAFKA_CLIENT_ID", "subscriptions-service"),
 	}
 }
 
