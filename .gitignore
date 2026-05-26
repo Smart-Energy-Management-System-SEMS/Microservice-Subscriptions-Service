@@ -1,0 +1,18 @@
+# Local secrets and env files
+.env
+.env.*
+!.env.example
+
+# IDE
+.idea/
+
+# Build outputs
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go cache artifacts (project-local)
+bin/

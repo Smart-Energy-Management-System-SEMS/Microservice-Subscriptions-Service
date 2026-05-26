@@ -2,19 +2,46 @@ package main
 
 import (
 	"fmt"
+	"log"
+
+	"github.com/gin-gonic/gin"
+	"microservice-subscriptions-service/subscriptions"
+	"microservice-subscriptions-service/subscriptions/application/commandservices"
+	"microservice-subscriptions-service/subscriptions/application/queryservices"
+	appconfig "microservice-subscriptions-service/subscriptions/infrastructure/configuration"
+	kafkainfra "microservice-subscriptions-service/subscriptions/infrastructure/messaging/kafka"
+	stripeinfra "microservice-subscriptions-service/subscriptions/infrastructure/payments/stripe"
+	dbconfig "microservice-subscriptions-service/subscriptions/infrastructure/persistence/gorm/configuration"
+	gormrepo "microservice-subscriptions-service/subscriptions/infrastructure/persistence/gorm/repositories"
+	"microservice-subscriptions-service/subscriptions/interfaces/rest/controllers"
 )
 
-//TIP <p>To run your code, right-click the code and select <b>Run</b>.</p> <p>Alternatively, click
-// the <icon src="AllIcons.Actions.Execute"/> icon in the gutter and select the <b>Run</b> menu item from here.</p>
 func main() {
-	//TIP <p>Press <shortcut actionId="ShowIntentionActions"/> when your caret is at the underlined text
-	// to see how GoLand suggests fixing the warning.</p><p>Alternatively, if available, click the lightbulb to view possible fixes.</p>
-	s := "gopher"
-	fmt.Println("Hello and welcome, %s!", s)
+	cfg := appconfig.Load()
+	db, err := dbconfig.NewDatabase(cfg.DatabaseURL)
+	if err != nil {
+		log.Fatal(fmt.Errorf("database connection failed: %w", err))
+	}
 
-	for i := 1; i <= 5; i++ {
-		//TIP <p>To start your debugging session, right-click your code in the editor and select the Debug option.</p> <p>We have set one <icon src="AllIcons.Debugger.Db_set_breakpoint"/> breakpoint
-		// for you, but you can always add more by pressing <shortcut actionId="ToggleLineBreakpoint"/>.</p>
-		fmt.Println("i =", 100/i)
+	if err = dbconfig.AutoMigrate(db); err != nil {
+		log.Fatal(fmt.Errorf("database migration failed: %w", err))
+	}
+
+	planRepo := gormrepo.NewSubscriptionPlanRepository(db)
+	subRepo := gormrepo.NewSubscriptionRepository(db)
+	publisher := kafkainfra.NewPublisher(cfg.KafkaBrokers, cfg.KafkaClientID)
+	stripeAdapter := stripeinfra.NewAdapter(cfg.StripeSecretKey)
+
+	planCommand := commandservices.NewPlanCommandService(planRepo)
+	planQuery := queryservices.NewPlanQueryService(planRepo)
+	subscriptionCommand := commandservices.NewSubscriptionCommandService(subRepo, planRepo, stripeAdapter, publisher)
+	subscriptionQuery := queryservices.NewSubscriptionQueryService(subRepo)
+
+	controller := controllers.NewSubscriptionController(planCommand, planQuery, subscriptionCommand, subscriptionQuery)
+	r := gin.Default()
+	subscriptions.RegisterRoutes(r, controller)
+
+	if err = r.Run(":" + cfg.ServerPort); err != nil {
+		log.Fatal(err)
 	}
 }
