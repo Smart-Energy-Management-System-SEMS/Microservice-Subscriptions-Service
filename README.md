@@ -23,6 +23,9 @@ Microservice de SEMS para administrar planes de suscripcion, caracteristicas de 
 - `POSTGRES_CHANNEL_BINDING`
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_PRICE_FREE`
+- `STRIPE_PRICE_PLUS`
+- `STRIPE_PRICE_PRO`
 - `KAFKA_BROKERS` (ej: `localhost:9092`)
 - `KAFKA_CLIENT_ID` (ej: `subscriptions-service`)
 
@@ -94,5 +97,6 @@ bash ./scripts/keepalive.sh "https://tu-servicio.onrender.com/api/v1/subscriptio
 - `user_id` proviene de IAM y se persiste sin FK cruzada.
 - `stripe_subscription_id` se guarda como referencia externa cuando aplique.
 - Para crear/cambiar suscripcion en Stripe se espera `STRIPE_PRICE_ID` en `plan_features.feature_code`.
+- Al iniciar, el servicio asegura planes base `Free`, `Plus`, `Pro` y sincroniza su `STRIPE_PRICE_ID` desde `STRIPE_PRICE_FREE`, `STRIPE_PRICE_PLUS`, `STRIPE_PRICE_PRO`.
 - `POST /api/v1/subscriptions` acepta `stripe_customer_id` para crear suscripcion real en Stripe.
 - No existen tablas de `payments`, `invoices`, `transactions` o `billing` en este servicio.
