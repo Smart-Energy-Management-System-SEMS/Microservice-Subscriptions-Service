@@ -17,9 +17,19 @@ func NewDatabase(databaseURL string) (*gorm.DB, error) {
 }
 
 func AutoMigrate(db *gorm.DB) error {
-	return db.AutoMigrate(
+	models := []any{
 		&model2.SubscriptionPlanModel{},
 		&model2.PlanFeatureModel{},
 		&model2.SubscriptionModel{},
-	)
+	}
+
+	for _, m := range models {
+		if !db.Migrator().HasTable(m) {
+			if err := db.Migrator().CreateTable(m); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
