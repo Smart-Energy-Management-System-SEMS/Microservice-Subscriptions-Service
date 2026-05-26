@@ -60,7 +60,7 @@ Usa `.env.example` como plantilla y guarda tus secretos en `.env` (ignorado por 
 
 ## Migraciones
 
-GORM ejecuta `AutoMigrate` al iniciar para:
+El servicio valida/crea las tablas requeridas al iniciar:
 
 - `subscription_plans`
 - `plan_features`
@@ -74,6 +74,20 @@ go run .
 ```
 
 Servicio por defecto en `http://localhost:8081`.
+
+## Keep-Alive (Render/Free plans)
+
+Puedes usar un pinger externo para mantener vivo el servicio:
+
+- Windows PowerShell:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\keepalive.ps1 -Url "https://tu-servicio.onrender.com/api/v1/subscription-plans" -IntervalSeconds 600
+```
+
+- Linux/macOS:
+```bash
+bash ./scripts/keepalive.sh "https://tu-servicio.onrender.com/api/v1/subscription-plans" 600
+```
 
 ## Notas
 
