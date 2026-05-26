@@ -58,6 +58,18 @@ func (r *SubscriptionRepository) FindByUserID(userID string) ([]entities.Subscri
 	return out, nil
 }
 
+func (r *SubscriptionRepository) FindByStripeSubscriptionID(stripeSubscriptionID string) (*entities.Subscription, error) {
+	var m model.SubscriptionModel
+	if err := r.db.Where("stripe_subscription_id = ?", stripeSubscriptionID).First(&m).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	e := toSubscriptionEntity(m)
+	return &e, nil
+}
+
 func toSubscriptionModel(e *entities.Subscription) *model.SubscriptionModel {
 	return &model.SubscriptionModel{SubscriptionID: e.SubscriptionID, UserID: e.UserID, PlanID: e.PlanID, Status: string(e.Status), StartDate: e.StartDate, EndDate: e.EndDate, StripeSubscriptionID: e.StripeSubscriptionID, CreatedAt: e.CreatedAt}
 }

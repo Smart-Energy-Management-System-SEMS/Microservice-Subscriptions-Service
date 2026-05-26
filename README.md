@@ -46,6 +46,10 @@ Usa `.env.example` como plantilla y guarda tus secretos en `.env` (ignorado por 
 - `PATCH /api/v1/subscriptions/:subscriptionId/cancel`
 - `PATCH /api/v1/subscriptions/:subscriptionId/change-plan`
 
+### Webhooks
+
+- `POST /api/v1/webhooks/stripe`
+
 ## Estados de suscripcion
 
 - `ACTIVE`
@@ -56,7 +60,7 @@ Usa `.env.example` como plantilla y guarda tus secretos en `.env` (ignorado por 
 
 ## Migraciones
 
-GORM ejecuta `AutoMigrate` al iniciar para:
+El servicio valida/crea las tablas requeridas al iniciar:
 
 - `subscription_plans`
 - `plan_features`
@@ -71,8 +75,24 @@ go run .
 
 Servicio por defecto en `http://localhost:8081`.
 
+## Keep-Alive (Render/Free plans)
+
+Puedes usar un pinger externo para mantener vivo el servicio:
+
+- Windows PowerShell:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\keepalive.ps1 -Url "https://tu-servicio.onrender.com/api/v1/subscription-plans" -IntervalSeconds 600
+```
+
+- Linux/macOS:
+```bash
+bash ./scripts/keepalive.sh "https://tu-servicio.onrender.com/api/v1/subscription-plans" 600
+```
+
 ## Notas
 
 - `user_id` proviene de IAM y se persiste sin FK cruzada.
 - `stripe_subscription_id` se guarda como referencia externa cuando aplique.
+- Para crear/cambiar suscripcion en Stripe se espera `STRIPE_PRICE_ID` en `plan_features.feature_code`.
+- `POST /api/v1/subscriptions` acepta `stripe_customer_id` para crear suscripcion real en Stripe.
 - No existen tablas de `payments`, `invoices`, `transactions` o `billing` en este servicio.

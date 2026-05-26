@@ -2,12 +2,14 @@ package controllers
 
 import (
 	"errors"
+	"io"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
 	"microservice-subscriptions-service/subscriptions/application/commandservices"
+	"microservice-subscriptions-service/subscriptions/application/eventhandlers"
 	"microservice-subscriptions-service/subscriptions/application/queryservices"
 	"microservice-subscriptions-service/subscriptions/domain/model/commands"
 	"microservice-subscriptions-service/subscriptions/interfaces/rest/resources"
@@ -19,10 +21,12 @@ type SubscriptionController struct {
 	planQuery           *queryservices.PlanQueryService
 	subscriptionCommand *commandservices.SubscriptionCommandService
 	subscriptionQuery   *queryservices.SubscriptionQueryService
+	stripeWebhook       *eventhandlers.StripeWebhookHandler
+	stripeWebhookSecret string
 }
 
-func NewSubscriptionController(planCommand *commandservices.PlanCommandService, planQuery *queryservices.PlanQueryService, subscriptionCommand *commandservices.SubscriptionCommandService, subscriptionQuery *queryservices.SubscriptionQueryService) *SubscriptionController {
-	return &SubscriptionController{planCommand: planCommand, planQuery: planQuery, subscriptionCommand: subscriptionCommand, subscriptionQuery: subscriptionQuery}
+func NewSubscriptionController(planCommand *commandservices.PlanCommandService, planQuery *queryservices.PlanQueryService, subscriptionCommand *commandservices.SubscriptionCommandService, subscriptionQuery *queryservices.SubscriptionQueryService, stripeWebhook *eventhandlers.StripeWebhookHandler, stripeWebhookSecret string) *SubscriptionController {
+	return &SubscriptionController{planCommand: planCommand, planQuery: planQuery, subscriptionCommand: subscriptionCommand, subscriptionQuery: subscriptionQuery, stripeWebhook: stripeWebhook, stripeWebhookSecret: stripeWebhookSecret}
 }
 
 func (c *SubscriptionController) GetPlans(ctx *gin.Context) {
@@ -156,6 +160,31 @@ func (c *SubscriptionController) ChangePlan(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, sub)
+}
+
+func (c *SubscriptionController) StripeWebhook(ctx *gin.Context) {
+	if c.stripeWebhook == nil || c.stripeWebhookSecret == "" {
+		ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": "stripe webhook is not configured"})
+		return
+	}
+
+	signature := ctx.GetHeader("Stripe-Signature")
+	if signature == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "missing Stripe-Signature header"})
+		return
+	}
+
+	payload, err := io.ReadAll(ctx.Request.Body)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	if err = c.stripeWebhook.Handle(payload, signature, c.stripeWebhookSecret); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"received": true})
 }
 
 func badRequest(ctx *gin.Context, err error) {

@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"microservice-subscriptions-service/subscriptions"
 	"microservice-subscriptions-service/subscriptions/application/commandservices"
+	"microservice-subscriptions-service/subscriptions/application/eventhandlers"
 	"microservice-subscriptions-service/subscriptions/application/queryservices"
 	appconfig "microservice-subscriptions-service/subscriptions/infrastructure/configuration"
 	kafkainfra "microservice-subscriptions-service/subscriptions/infrastructure/messaging/kafka"
@@ -36,8 +37,9 @@ func main() {
 	planQuery := queryservices.NewPlanQueryService(planRepo)
 	subscriptionCommand := commandservices.NewSubscriptionCommandService(subRepo, planRepo, stripeAdapter, publisher)
 	subscriptionQuery := queryservices.NewSubscriptionQueryService(subRepo)
+	stripeWebhookHandler := eventhandlers.NewStripeWebhookHandler(subRepo, publisher)
 
-	controller := controllers.NewSubscriptionController(planCommand, planQuery, subscriptionCommand, subscriptionQuery)
+	controller := controllers.NewSubscriptionController(planCommand, planQuery, subscriptionCommand, subscriptionQuery, stripeWebhookHandler, cfg.StripeWebhookSecret)
 	r := gin.Default()
 	subscriptions.RegisterRoutes(r, controller)
 

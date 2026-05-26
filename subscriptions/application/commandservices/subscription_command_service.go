@@ -3,6 +3,7 @@ package commandservices
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -39,8 +40,12 @@ func (s *SubscriptionCommandService) Create(cmd commands.CreateSubscriptionComma
 	if plan == nil || !plan.Active {
 		return nil, errors.New("plan is not available")
 	}
+	stripePriceID, err := extractStripePriceID(*plan)
+	if err != nil {
+		return nil, err
+	}
 	subscription := &entities.Subscription{SubscriptionID: uuid.NewString(), UserID: cmd.UserID, PlanID: cmd.PlanID, Status: valueobjects.StatusActive, StartDate: time.Now().UTC(), CreatedAt: time.Now().UTC()}
-	stripeID, err := s.stripe.CreateSubscription(*subscription)
+	stripeID, err := s.stripe.CreateSubscription(*subscription, cmd.StripeCustomerID, stripePriceID)
 	if err == nil && stripeID != "" {
 		subscription.StripeSubscriptionID = &stripeID
 	}
@@ -93,8 +98,12 @@ func (s *SubscriptionCommandService) ChangePlan(cmd commands.ChangePlanCommand) 
 	if plan == nil || !plan.Active {
 		return nil, errors.New("new plan is not available")
 	}
+	targetPriceID, err := extractStripePriceID(*plan)
+	if err != nil {
+		return nil, err
+	}
 	if subscription.StripeSubscriptionID != nil {
-		_ = s.stripe.ChangePlan(*subscription.StripeSubscriptionID, cmd.NewPlanID)
+		_ = s.stripe.ChangePlan(*subscription.StripeSubscriptionID, targetPriceID)
 	}
 	subscription.PlanID = cmd.NewPlanID
 	subscription.Status = valueobjects.StatusPendingRenewal
@@ -103,6 +112,18 @@ func (s *SubscriptionCommandService) ChangePlan(cmd commands.ChangePlanCommand) 
 	}
 	s.publish("SubscriptionPlanChanged", subscription)
 	return subscription, nil
+}
+
+func extractStripePriceID(plan entities.SubscriptionPlan) (string, error) {
+	for _, f := range plan.PlanFeatures {
+		if strings.EqualFold(strings.TrimSpace(f.FeatureCode), "STRIPE_PRICE_ID") {
+			value := strings.TrimSpace(f.FeatureValue)
+			if value != "" {
+				return value, nil
+			}
+		}
+	}
+	return "", errors.New("plan is missing STRIPE_PRICE_ID in plan features")
 }
 
 func (s *SubscriptionCommandService) publish(topic string, subscription *entities.Subscription) {
