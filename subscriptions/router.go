@@ -25,5 +25,10 @@ func RegisterRoutes(r *gin.Engine, c *controllers.SubscriptionController) {
 			subs.PATCH(":subscriptionId/cancel", c.CancelSubscription)
 			subs.PATCH(":subscriptionId/change-plan", c.ChangePlan)
 		}
+
+		webhooks := v1.Group("/webhooks")
+		{
+			webhooks.POST("/stripe", c.StripeWebhook)
+		}
 	}
 }
