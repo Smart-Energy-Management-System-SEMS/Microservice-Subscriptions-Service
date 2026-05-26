@@ -1,6 +1,6 @@
-# Microservice Subscriptions Service
+ï»¿# Microservice Subscriptions Service
 
-Microservicio de SEMS para administrar planes de suscripción, características de planes y ciclo de vida de suscripciones. No maneja pagos directos.
+Microservice de SEMS para administrar planes de suscripcion, caracteristicas de planes y ciclo de vida de suscripciones. No maneja pagos directos.
 
 ## Arquitectura
 
@@ -8,30 +8,25 @@ Microservicio de SEMS para administrar planes de suscripción, características de
 - Capas: `domain`, `application`, `infrastructure`, `interfaces`
 - Persistencia: PostgreSQL (Neon) con GORM
 - Integraciones externas: Stripe (adapter), Kafka (publisher)
-- API REST lista para ser expuesta detrás de API Gateway
-
-## Estructura
-
-```text
-subscriptions/
-  application/
-  domain/
-  infrastructure/
-  interfaces/
-  router.go
-  main.go
-```
+- API REST lista para exponer detras de API Gateway
 
 ## Variables de entorno
 
 - `SERVER_PORT` (ej: `8081`)
-- `DATABASE_URL` (Neon PostgreSQL)
+- `DATABASE_URL` (opcional) o variables separadas:
+- `POSTGRES_HOST`
+- `POSTGRES_PORT`
+- `POSTGRES_DB`
+- `POSTGRES_USER`
+- `POSTGRES_PASSWORD`
+- `POSTGRES_SSLMODE`
+- `POSTGRES_CHANNEL_BINDING`
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
 - `KAFKA_BROKERS` (ej: `localhost:9092`)
 - `KAFKA_CLIENT_ID` (ej: `subscriptions-service`)
 
-Revisa `.env.example`.
+Usa `.env.example` como plantilla y guarda tus secretos en `.env` (ignorado por Git).
 
 ## Endpoints
 
@@ -51,7 +46,7 @@ Revisa `.env.example`.
 - `PATCH /api/v1/subscriptions/:subscriptionId/cancel`
 - `PATCH /api/v1/subscriptions/:subscriptionId/change-plan`
 
-## Estados de suscripción
+## Estados de suscripcion
 
 - `ACTIVE`
 - `INACTIVE`
@@ -61,7 +56,7 @@ Revisa `.env.example`.
 
 ## Migraciones
 
-Se ejecutan automáticamente en el arranque con GORM `AutoMigrate` para:
+GORM ejecuta `AutoMigrate` al iniciar para:
 
 - `subscription_plans`
 - `plan_features`
@@ -74,9 +69,9 @@ go mod tidy
 go run .
 ```
 
-Por defecto, levanta en `http://localhost:8081`.
+Servicio por defecto en `http://localhost:8081`.
 
-## Notas de integración
+## Notas
 
 - `user_id` proviene de IAM y se persiste sin FK cruzada.
 - `stripe_subscription_id` se guarda como referencia externa cuando aplique.
