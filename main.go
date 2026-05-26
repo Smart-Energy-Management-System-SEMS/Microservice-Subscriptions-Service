@@ -27,6 +27,9 @@ func main() {
 	if err = dbconfig.AutoMigrate(db); err != nil {
 		log.Fatal(fmt.Errorf("database migration failed: %w", err))
 	}
+	if err = dbconfig.SeedDefaultPlans(db, cfg); err != nil {
+		log.Fatal(fmt.Errorf("default plans seed failed: %w", err))
+	}
 
 	planRepo := gormrepo.NewSubscriptionPlanRepository(db)
 	subRepo := gormrepo.NewSubscriptionRepository(db)

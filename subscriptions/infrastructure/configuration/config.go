@@ -15,6 +15,9 @@ type AppConfig struct {
 	StripePublishableKey string
 	StripeSecretKey      string
 	StripeWebhookSecret  string
+	StripePriceFree      string
+	StripePricePlus      string
+	StripePricePro       string
 	KafkaBrokers         []string
 	KafkaClientID        string
 }
@@ -32,6 +35,9 @@ func Load() AppConfig {
 		StripePublishableKey: os.Getenv("STRIPE_PUBLISHABLE_KEY"),
 		StripeSecretKey:      os.Getenv("STRIPE_SECRET_KEY"),
 		StripeWebhookSecret:  os.Getenv("STRIPE_WEBHOOK_SECRET"),
+		StripePriceFree:      os.Getenv("STRIPE_PRICE_FREE"),
+		StripePricePlus:      os.Getenv("STRIPE_PRICE_PLUS"),
+		StripePricePro:       os.Getenv("STRIPE_PRICE_PRO"),
 		KafkaBrokers:         splitCSV(getEnv("KAFKA_BROKERS", "localhost:9092")),
 		KafkaClientID:        getEnv("KAFKA_CLIENT_ID", "subscriptions-service"),
 	}
