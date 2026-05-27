@@ -16,3 +16,4 @@
 
 # Go cache artifacts (project-local)
 bin/
+.gocache/

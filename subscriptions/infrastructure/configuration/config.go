@@ -30,7 +30,7 @@ func Load() AppConfig {
 	}
 
 	return AppConfig{
-		ServerPort:           getEnv("SERVER_PORT", "8081"),
+		ServerPort:           getServerPort(),
 		DatabaseURL:          databaseURL,
 		StripePublishableKey: os.Getenv("STRIPE_PUBLISHABLE_KEY"),
 		StripeSecretKey:      os.Getenv("STRIPE_SECRET_KEY"),
@@ -77,6 +77,13 @@ func getEnv(key, defaultValue string) string {
 		return defaultValue
 	}
 	return value
+}
+
+func getServerPort() string {
+	if port := os.Getenv("PORT"); port != "" {
+		return port
+	}
+	return getEnv("SERVER_PORT", "8081")
 }
 
 func splitCSV(value string) []string {

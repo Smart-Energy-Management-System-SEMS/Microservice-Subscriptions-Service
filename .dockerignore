@@ -1,0 +1,13 @@
+.git
+.idea
+.env
+.env.*
+!.env.example
+bin
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+Microservice-Subscriptions-Service.iml
