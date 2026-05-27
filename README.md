@@ -78,6 +78,56 @@ go run .
 
 Servicio por defecto en `http://localhost:8081`.
 
+## Docker
+
+Construir la imagen:
+
+```bash
+docker build -t microservice-subscriptions-service .
+```
+
+Ejecutar localmente usando tu `.env`:
+
+```bash
+docker run --env-file .env -p 8082:8082 microservice-subscriptions-service
+```
+
+Si no defines `SERVER_PORT`, el contenedor usa `8081`:
+
+```bash
+docker run --env-file .env -p 8081:8081 microservice-subscriptions-service
+```
+
+## Deploy en Render
+
+### Opcion recomendada: sin Docker
+
+Este repositorio incluye `render.yaml` para desplegar como servicio Go nativo.
+
+1. Sube el repo a GitHub.
+2. En Render, crea un nuevo Blueprint o Web Service desde el repo.
+3. Si usas Blueprint, Render leera `render.yaml`.
+4. Agrega las variables marcadas como secretas:
+   - `DATABASE_URL`
+   - `STRIPE_SECRET_KEY`
+   - `STRIPE_PUBLISHABLE_KEY`
+   - `STRIPE_WEBHOOK_SECRET`
+   - `STRIPE_PRICE_FREE`
+   - `STRIPE_PRICE_PLUS`
+   - `STRIPE_PRICE_PRO`
+   - `KAFKA_BROKERS`
+5. Build command: `go build -tags netgo -ldflags "-s -w" -o app .`
+6. Start command: `./app`
+
+Render inyecta `PORT` automaticamente y la app lo usa antes que `SERVER_PORT`.
+El health check esta disponible en `GET /health`.
+
+### Opcion con Docker
+
+Tambien puedes crear el Web Service seleccionando runtime Docker. Render usara el
+`Dockerfile` del repo y las mismas variables de entorno. No subas `.env` a Git ni
+lo copies dentro de la imagen.
+
 ## Keep-Alive (Render/Free plans)
 
 Puedes usar un pinger externo para mantener vivo el servicio:

@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: microservice-subscriptions-service
+    runtime: go
+    plan: free
+    buildCommand: go build -tags netgo -ldflags "-s -w" -o app .
+    startCommand: ./app
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRICE_FREE
+        sync: false
+      - key: STRIPE_PRICE_PLUS
+        sync: false
+      - key: STRIPE_PRICE_PRO
+        sync: false
+      - key: KAFKA_BROKERS
+        sync: false
+      - key: KAFKA_CLIENT_ID
+        value: subscriptions-service
