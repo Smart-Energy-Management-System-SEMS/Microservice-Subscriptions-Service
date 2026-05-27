@@ -14,6 +14,7 @@ import (
 	stripeinfra "microservice-subscriptions-service/subscriptions/infrastructure/payments/stripe"
 	dbconfig "microservice-subscriptions-service/subscriptions/infrastructure/persistence/gorm/configuration"
 	gormrepo "microservice-subscriptions-service/subscriptions/infrastructure/persistence/gorm/repositories"
+	"microservice-subscriptions-service/subscriptions/interfaces/acl"
 	"microservice-subscriptions-service/subscriptions/interfaces/rest/controllers"
 )
 
@@ -35,10 +36,11 @@ func main() {
 	subRepo := gormrepo.NewSubscriptionRepository(db)
 	publisher := kafkainfra.NewPublisher(cfg.KafkaBrokers, cfg.KafkaClientID)
 	stripeAdapter := stripeinfra.NewAdapter(cfg.StripeSecretKey)
+	stripeServiceACL := acl.NewStripeServiceACL(stripeAdapter)
 
 	planCommand := commandservices.NewPlanCommandService(planRepo)
 	planQuery := queryservices.NewPlanQueryService(planRepo)
-	subscriptionCommand := commandservices.NewSubscriptionCommandService(subRepo, planRepo, stripeAdapter, publisher)
+	subscriptionCommand := commandservices.NewSubscriptionCommandService(subRepo, planRepo, stripeServiceACL, publisher)
 	subscriptionQuery := queryservices.NewSubscriptionQueryService(subRepo)
 	stripeWebhookHandler := eventhandlers.NewStripeWebhookHandler(subRepo, publisher)
 
