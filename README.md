@@ -26,10 +26,43 @@ Microservice de SEMS para administrar planes de suscripcion, caracteristicas de 
 - `STRIPE_PRICE_FREE`
 - `STRIPE_PRICE_PLUS`
 - `STRIPE_PRICE_PRO`
-- `KAFKA_BROKERS` (ej: `localhost:9092`)
+- `KAFKA_ENABLED` (ej: `true`)
+- `KAFKA_BOOTSTRAP_SERVERS` (ej: `kafka-3e5f04c8-sems-project.k.aivencloud.com:13780`)
+- `KAFKA_BROKERS` (ej: `kafka-3e5f04c8-sems-project.k.aivencloud.com:13780`)
 - `KAFKA_CLIENT_ID` (ej: `subscriptions-service`)
+- `KAFKA_USERNAME` (ej: `avnadmin`)
+- `KAFKA_PASSWORD`
+- `KAFKA_SECURITY_PROTOCOL` (`SASL_SSL` para Aiven, `PLAINTEXT` para local)
+- `KAFKA_SASL_MECHANISM` (`SCRAM-SHA-256` para Aiven)
+- `KAFKA_CA_CERT_PATH` (opcional)
+- `KAFKA_CA_CERT` (opcional)
 
 Usa `.env.example` como plantilla y guarda tus secretos en `.env` (ignorado por Git).
+
+## Kafka en Aiven (local y Render)
+
+Variables minimas para Aiven:
+
+- `KAFKA_ENABLED=true`
+- `KAFKA_BOOTSTRAP_SERVERS=kafka-3e5f04c8-sems-project.k.aivencloud.com:13780`
+- `KAFKA_BROKERS=kafka-3e5f04c8-sems-project.k.aivencloud.com:13780`
+- `KAFKA_USERNAME=avnadmin`
+- `KAFKA_PASSWORD=<tu-password-real>`
+- `KAFKA_SECURITY_PROTOCOL=SASL_SSL`
+- `KAFKA_SASL_MECHANISM=SCRAM-SHA-256`
+
+Para local con Aiven no necesitas Docker Kafka ni `localhost:9092`, porque el broker esta online.
+
+Opcional para local con Kafka propio:
+
+- `KAFKA_SECURITY_PROTOCOL=PLAINTEXT`
+- `KAFKA_BOOTSTRAP_SERVERS=localhost:9092`
+- `KAFKA_BROKERS=localhost:9092`
+
+Reglas de Git:
+
+- `.env` no se sube a GitHub (contiene secretos reales).
+- `.env.example` si se sube a GitHub (solo placeholders).
 
 ## Endpoints
 
@@ -115,12 +148,22 @@ Este repositorio incluye `render.yaml` para desplegar como servicio Go nativo.
    - `STRIPE_PRICE_FREE`
    - `STRIPE_PRICE_PLUS`
    - `STRIPE_PRICE_PRO`
+   - `KAFKA_ENABLED`
+   - `KAFKA_BOOTSTRAP_SERVERS`
    - `KAFKA_BROKERS`
+   - `KAFKA_USERNAME`
+   - `KAFKA_PASSWORD`
+   - `KAFKA_SECURITY_PROTOCOL`
+   - `KAFKA_SASL_MECHANISM`
 5. Build command: `go build -tags netgo -ldflags "-s -w" -o app .`
 6. Start command: `./app`
 
 Render inyecta `PORT` automaticamente y la app lo usa antes que `SERVER_PORT`.
 El health check esta disponible en `GET /health`.
+
+Estas mismas variables Kafka deben ir en Render:
+
+`Service -> Environment -> Environment Variables`
 
 ### Opcion con Docker
 

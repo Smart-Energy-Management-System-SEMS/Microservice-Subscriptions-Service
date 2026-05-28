@@ -18,8 +18,16 @@ type AppConfig struct {
 	StripePriceFree      string
 	StripePricePlus      string
 	StripePricePro       string
+	KafkaEnabled         bool
+	KafkaBootstrapServer string
 	KafkaBrokers         []string
 	KafkaClientID        string
+	KafkaUsername        string
+	KafkaPassword        string
+	KafkaSecurityProto   string
+	KafkaSASLMechanism   string
+	KafkaCACert          string
+	KafkaCACertPath      string
 }
 
 func Load() AppConfig {
@@ -38,8 +46,16 @@ func Load() AppConfig {
 		StripePriceFree:      os.Getenv("STRIPE_PRICE_FREE"),
 		StripePricePlus:      os.Getenv("STRIPE_PRICE_PLUS"),
 		StripePricePro:       os.Getenv("STRIPE_PRICE_PRO"),
-		KafkaBrokers:         splitCSV(getEnv("KAFKA_BROKERS", "localhost:9092")),
+		KafkaEnabled:         getEnvAsBool("KAFKA_ENABLED", true),
+		KafkaBootstrapServer: getEnv("KAFKA_BOOTSTRAP_SERVERS", getEnv("KAFKA_BROKERS", "localhost:9092")),
+		KafkaBrokers:         splitCSV(getEnv("KAFKA_BROKERS", getEnv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"))),
 		KafkaClientID:        getEnv("KAFKA_CLIENT_ID", "subscriptions-service"),
+		KafkaUsername:        os.Getenv("KAFKA_USERNAME"),
+		KafkaPassword:        os.Getenv("KAFKA_PASSWORD"),
+		KafkaSecurityProto:   getEnv("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT"),
+		KafkaSASLMechanism:   getEnv("KAFKA_SASL_MECHANISM", ""),
+		KafkaCACert:          os.Getenv("KAFKA_CA_CERT"),
+		KafkaCACertPath:      os.Getenv("KAFKA_CA_CERT_PATH"),
 	}
 }
 
@@ -96,4 +112,20 @@ func splitCSV(value string) []string {
 		}
 	}
 	return clean
+}
+
+func getEnvAsBool(key string, defaultValue bool) bool {
+	value := strings.TrimSpace(strings.ToLower(os.Getenv(key)))
+	if value == "" {
+		return defaultValue
+	}
+
+	switch value {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return defaultValue
+	}
 }
