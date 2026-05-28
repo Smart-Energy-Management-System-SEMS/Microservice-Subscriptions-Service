@@ -15,19 +15,19 @@ func RegisterRoutes(r *gin.Engine, c *controllers.SubscriptionController) {
 		plans := v1.Group("/subscription-plans")
 		{
 			plans.GET("", c.GetPlans)
-			plans.GET(":planId", c.GetPlanByID)
+			plans.GET("/:planId", c.GetPlanByID)
 			plans.POST("", c.CreatePlan)
-			plans.PUT(":planId", c.UpdatePlan)
-			plans.PATCH(":planId/deactivate", c.DeactivatePlan)
+			plans.PUT("/:planId", c.UpdatePlan)
+			plans.PATCH("/:planId/deactivate", c.DeactivatePlan)
 		}
 
 		subs := v1.Group("/subscriptions")
 		{
-			subs.GET(":subscriptionId", c.GetSubscriptionByID)
+			subs.GET("/:subscriptionId", c.GetSubscriptionByID)
 			subs.GET("/users/:userId", c.GetSubscriptionsByUserID)
 			subs.POST("", c.CreateSubscription)
-			subs.PATCH(":subscriptionId/cancel", c.CancelSubscription)
-			subs.PATCH(":subscriptionId/change-plan", c.ChangePlan)
+			subs.PATCH("/:subscriptionId/cancel", c.CancelSubscription)
+			subs.PATCH("/:subscriptionId/change-plan", c.ChangePlan)
 		}
 
 		webhooks := v1.Group("/webhooks")
