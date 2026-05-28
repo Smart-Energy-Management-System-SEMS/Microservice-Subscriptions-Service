@@ -50,9 +50,26 @@ func main() {
 
 	planCommand := commandservices.NewPlanCommandService(planRepo)
 	planQuery := queryservices.NewPlanQueryService(planRepo)
-	subscriptionCommand := commandservices.NewSubscriptionCommandService(subRepo, planRepo, stripeServiceACL, publisher)
+	subscriptionCommand := commandservices.NewSubscriptionCommandService(
+		subRepo,
+		planRepo,
+		stripeServiceACL,
+		publisher,
+		commandservices.SubscriptionTopics{
+			Created:     cfg.KafkaTopicSubscriptionCreated,
+			Cancelled:   cfg.KafkaTopicSubscriptionCancelled,
+			PlanChanged: cfg.KafkaTopicSubscriptionPlanChanged,
+		},
+	)
 	subscriptionQuery := queryservices.NewSubscriptionQueryService(subRepo)
-	stripeWebhookHandler := eventhandlers.NewStripeWebhookHandler(subRepo, publisher)
+	stripeWebhookHandler := eventhandlers.NewStripeWebhookHandler(
+		subRepo,
+		publisher,
+		eventhandlers.StripeWebhookTopics{
+			Expired: cfg.KafkaTopicSubscriptionExpired,
+			Updated: cfg.KafkaTopicSubscriptionUpdated,
+		},
+	)
 
 	controller := controllers.NewSubscriptionController(planCommand, planQuery, subscriptionCommand, subscriptionQuery, stripeWebhookHandler, cfg.StripeWebhookSecret)
 	r := gin.Default()
