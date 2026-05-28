@@ -40,9 +40,29 @@ func AutoMigrate(db *gorm.DB) error {
 }
 
 func ensureSubscriptionStatusConstraint(db *gorm.DB) error {
-	dropSQL := `ALTER TABLE subscriptions DROP CONSTRAINT IF EXISTS chk_subscription_status`
-	if err := db.Exec(dropSQL).Error; err != nil {
-		return fmt.Errorf("drop chk_subscription_status failed: %w", err)
+	normalizeSQL := `UPDATE subscriptions
+		SET status = UPPER(TRIM(status))
+		WHERE status IS NOT NULL`
+	if err := db.Exec(normalizeSQL).Error; err != nil {
+		return fmt.Errorf("normalize subscription status failed: %w", err)
+	}
+
+	dropOldChecksSQL := `
+DO $$
+DECLARE r RECORD;
+BEGIN
+	FOR r IN
+		SELECT conname
+		FROM pg_constraint
+		WHERE conrelid = 'subscriptions'::regclass
+		  AND contype = 'c'
+		  AND pg_get_constraintdef(oid) ILIKE '%status%'
+	LOOP
+		EXECUTE format('ALTER TABLE subscriptions DROP CONSTRAINT IF EXISTS %I', r.conname);
+	END LOOP;
+END $$;`
+	if err := db.Exec(dropOldChecksSQL).Error; err != nil {
+		return fmt.Errorf("drop old status checks failed: %w", err)
 	}
 
 	addSQL := `ALTER TABLE subscriptions
