@@ -6,8 +6,8 @@ Microservicio de SEMS para administrar planes y ciclo de vida de suscripciones.
 
 - Config-Service local: `http://localhost:8090`
 - API Gateway local: `http://localhost:8081`
-- Puerto local de este microservicio: `8082`
-- Base URL local final: `http://localhost:8082`
+- Puerto local de este microservicio: `8083`
+- Base URL local final: `http://localhost:8083`
 
 ## Variables de entorno
 
