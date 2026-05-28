@@ -34,7 +34,17 @@ func main() {
 
 	planRepo := gormrepo.NewSubscriptionPlanRepository(db)
 	subRepo := gormrepo.NewSubscriptionRepository(db)
-	publisher := kafkainfra.NewPublisher(cfg.KafkaBrokers, cfg.KafkaClientID)
+	publisher := kafkainfra.NewPublisher(kafkainfra.Config{
+		Enabled:          cfg.KafkaEnabled,
+		Brokers:          cfg.KafkaBrokers,
+		ClientID:         cfg.KafkaClientID,
+		Username:         cfg.KafkaUsername,
+		Password:         cfg.KafkaPassword,
+		SecurityProtocol: cfg.KafkaSecurityProto,
+		SASLMechanism:    cfg.KafkaSASLMechanism,
+		CACert:           cfg.KafkaCACert,
+		CACertPath:       cfg.KafkaCACertPath,
+	})
 	stripeAdapter := stripeinfra.NewAdapter(cfg.StripeSecretKey)
 	stripeServiceACL := acl.NewStripeServiceACL(stripeAdapter)
 
