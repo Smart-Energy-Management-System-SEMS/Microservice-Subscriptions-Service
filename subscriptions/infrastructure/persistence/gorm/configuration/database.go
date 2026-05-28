@@ -2,6 +2,7 @@ package configuration
 
 import (
 	"errors"
+	"fmt"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -29,6 +30,26 @@ func AutoMigrate(db *gorm.DB) error {
 				return err
 			}
 		}
+	}
+
+	if err := ensureSubscriptionStatusConstraint(db); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func ensureSubscriptionStatusConstraint(db *gorm.DB) error {
+	dropSQL := `ALTER TABLE subscriptions DROP CONSTRAINT IF EXISTS chk_subscription_status`
+	if err := db.Exec(dropSQL).Error; err != nil {
+		return fmt.Errorf("drop chk_subscription_status failed: %w", err)
+	}
+
+	addSQL := `ALTER TABLE subscriptions
+		ADD CONSTRAINT chk_subscription_status
+		CHECK (status IN ('ACTIVE','INACTIVE','CANCELLED','PENDING_RENEWAL','EXPIRED'))`
+	if err := db.Exec(addSQL).Error; err != nil {
+		return fmt.Errorf("create chk_subscription_status failed: %w", err)
 	}
 
 	return nil
