@@ -1,68 +1,49 @@
-﻿# Microservice Subscriptions Service
+# Microservice Subscriptions Service
 
-Microservice de SEMS para administrar planes de suscripcion, caracteristicas de planes y ciclo de vida de suscripciones. No maneja pagos directos.
+Microservicio de SEMS para administrar planes y ciclo de vida de suscripciones.
 
 ## Arquitectura
 
 - Go + Clean Architecture + DDD
 - Capas: `domain`, `application`, `infrastructure`, `interfaces`
-- Persistencia: PostgreSQL (Neon) con GORM
-- Integraciones externas: Stripe (adapter), Kafka (publisher)
-- API REST lista para exponer detras de API Gateway
+- Persistencia: PostgreSQL con GORM
+- Integraciones: Stripe + Kafka
 
-## Variables de entorno
+## Configuracion centralizada (Config Service)
 
-- `SERVER_PORT` (ej: `8081`)
-- `DATABASE_URL` (opcional) o variables separadas:
-- `POSTGRES_HOST`
-- `POSTGRES_PORT`
-- `POSTGRES_DB`
-- `POSTGRES_USER`
-- `POSTGRES_PASSWORD`
-- `POSTGRES_SSLMODE`
-- `POSTGRES_CHANNEL_BINDING`
+Desde esta version, la configuracion compartida entre microservicios se obtiene del Config Service usando:
+
+- `GET /api/v1/config/services`
+- `GET /api/v1/config/kafka`
+- `GET /api/v1/config/{service-name}`
+
+El servicio consulta esos endpoints al iniciar cuando existe `CONFIG_SERVICE_URL`.
+
+### Que sigue en variables de entorno (local/deploy)
+
+- `SERVER_PORT` (o `PORT` en plataformas como Azure/Render)
+- `SERVICE_NAME`
+- `CONFIG_SERVICE_URL`
+- `CONFIG_SERVICE_TIMEOUT_MS`
+- `DATABASE_URL` o `POSTGRES_*`
 - `STRIPE_SECRET_KEY`
+- `STRIPE_PUBLISHABLE_KEY`
 - `STRIPE_WEBHOOK_SECRET`
-- `STRIPE_PRICE_FREE`
-- `STRIPE_PRICE_PLUS`
-- `STRIPE_PRICE_PRO`
-- `KAFKA_ENABLED` (ej: `true`)
-- `KAFKA_BOOTSTRAP_SERVERS` (ej: `kafka-3e5f04c8-sems-project.k.aivencloud.com:13780`)
-- `KAFKA_BROKERS` (ej: `kafka-3e5f04c8-sems-project.k.aivencloud.com:13780`)
-- `KAFKA_CLIENT_ID` (ej: `subscriptions-service`)
-- `KAFKA_USERNAME` (ej: `avnadmin`)
-- `KAFKA_PASSWORD`
-- `KAFKA_SECURITY_PROTOCOL` (`SASL_SSL` para Aiven, `PLAINTEXT` para local)
-- `KAFKA_SASL_MECHANISM` (`SCRAM-SHA-256` para Aiven)
-- `KAFKA_CA_CERT_PATH` (opcional)
-- `KAFKA_CA_CERT` (opcional)
+- `KAFKA_USERNAME` (si aplica)
+- `KAFKA_PASSWORD` (si aplica)
+- `KAFKA_CA_CERT` / `KAFKA_CA_CERT_PATH` (si aplica)
 
-Usa `.env.example` como plantilla y guarda tus secretos en `.env` (ignorado por Git).
+### Que ahora puede venir desde Config Service
 
-## Kafka en Aiven (local y Render)
+- Kafka shared config (`kafkaEnabled`, brokers, protocol, mechanism, clientId)
+- Nombres de topics Kafka
+- Valores funcionales no secretos (ej. currency, Stripe price IDs)
+- Otros defaults operativos compartidos
 
-Variables minimas para Aiven:
+Notas:
 
-- `KAFKA_ENABLED=true`
-- `KAFKA_BOOTSTRAP_SERVERS=kafka-3e5f04c8-sems-project.k.aivencloud.com:13780`
-- `KAFKA_BROKERS=kafka-3e5f04c8-sems-project.k.aivencloud.com:13780`
-- `KAFKA_USERNAME=avnadmin`
-- `KAFKA_PASSWORD=<tu-password-real>`
-- `KAFKA_SECURITY_PROTOCOL=SASL_SSL`
-- `KAFKA_SASL_MECHANISM=SCRAM-SHA-256`
-
-Para local con Aiven no necesitas Docker Kafka ni `localhost:9092`, porque el broker esta online.
-
-Opcional para local con Kafka propio:
-
-- `KAFKA_SECURITY_PROTOCOL=PLAINTEXT`
-- `KAFKA_BOOTSTRAP_SERVERS=localhost:9092`
-- `KAFKA_BROKERS=localhost:9092`
-
-Reglas de Git:
-
-- `.env` no se sube a GitHub (contiene secretos reales).
-- `.env.example` si se sube a GitHub (solo placeholders).
+- Variables locales tienen prioridad sobre Config Service (override por entorno).
+- Si Config Service no responde, se usan fallbacks existentes para no romper arranque.
 
 ## Endpoints
 
@@ -86,110 +67,46 @@ Reglas de Git:
 
 - `POST /api/v1/webhooks/stripe`
 
-## Estados de suscripcion
+### Health
 
-- `ACTIVE`
-- `INACTIVE`
-- `CANCELLED`
-- `PENDING_RENEWAL`
-- `EXPIRED`
+- `GET /health`
 
-## Migraciones
+## Ejecutar localmente
 
-El servicio valida/crea las tablas requeridas al iniciar:
-
-- `subscription_plans`
-- `plan_features`
-- `subscriptions`
-
-## Ejecutar
+1. Copia `.env.example` a `.env` y completa secretos.
+2. Asegura que `CONFIG_SERVICE_URL` apunte a tu Config Service local.
+3. Ejecuta:
 
 ```bash
 go mod tidy
 go run .
 ```
 
-Servicio por defecto en `http://localhost:8081`.
+Por defecto corre en `http://localhost:8081`.
 
-## Docker
+## Azure Container Apps
 
-Construir la imagen:
+Recomendacion de variables en ACA:
 
-```bash
-docker build -t microservice-subscriptions-service .
-```
+- No secret env vars:
+  - `SERVICE_NAME=subscriptions-service`
+  - `CONFIG_SERVICE_URL=https://<config-service-domain>`
+  - `CONFIG_SERVICE_TIMEOUT_MS=3000`
+- Secret env vars (ACA Secrets + env refs):
+  - `DATABASE_URL` o `POSTGRES_PASSWORD`
+  - `STRIPE_SECRET_KEY`
+  - `STRIPE_WEBHOOK_SECRET`
+  - `KAFKA_PASSWORD`
+  - `KAFKA_CA_CERT` (si aplica)
 
-Ejecutar localmente usando tu `.env`:
+Sugerencias de despliegue:
 
-```bash
-docker run --env-file .env -p 8082:8082 microservice-subscriptions-service
-```
+- Configurar health probe sobre `GET /health`.
+- Mantener `PORT` inyectado por ACA (la app ya lo prioriza sobre `SERVER_PORT`).
+- Centralizar en Config Service los datos compartidos para evitar drift entre microservicios.
 
-Si no defines `SERVER_PORT`, el contenedor usa `8081`:
-
-```bash
-docker run --env-file .env -p 8081:8081 microservice-subscriptions-service
-```
-
-## Deploy en Render
-
-### Opcion recomendada: sin Docker
-
-Este repositorio incluye `render.yaml` para desplegar como servicio Go nativo.
-
-1. Sube el repo a GitHub.
-2. En Render, crea un nuevo Blueprint o Web Service desde el repo.
-3. Si usas Blueprint, Render leera `render.yaml`.
-4. Agrega las variables marcadas como secretas:
-   - `DATABASE_URL`
-   - `STRIPE_SECRET_KEY`
-   - `STRIPE_PUBLISHABLE_KEY`
-   - `STRIPE_WEBHOOK_SECRET`
-   - `STRIPE_PRICE_FREE`
-   - `STRIPE_PRICE_PLUS`
-   - `STRIPE_PRICE_PRO`
-   - `KAFKA_ENABLED`
-   - `KAFKA_BOOTSTRAP_SERVERS`
-   - `KAFKA_BROKERS`
-   - `KAFKA_USERNAME`
-   - `KAFKA_PASSWORD`
-   - `KAFKA_SECURITY_PROTOCOL`
-   - `KAFKA_SASL_MECHANISM`
-5. Build command: `go build -tags netgo -ldflags "-s -w" -o app .`
-6. Start command: `./app`
-
-Render inyecta `PORT` automaticamente y la app lo usa antes que `SERVER_PORT`.
-El health check esta disponible en `GET /health`.
-
-Estas mismas variables Kafka deben ir en Render:
-
-`Service -> Environment -> Environment Variables`
-
-### Opcion con Docker
-
-Tambien puedes crear el Web Service seleccionando runtime Docker. Render usara el
-`Dockerfile` del repo y las mismas variables de entorno. No subas `.env` a Git ni
-lo copies dentro de la imagen.
-
-## Keep-Alive (Render/Free plans)
-
-Puedes usar un pinger externo para mantener vivo el servicio:
-
-- Windows PowerShell:
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\keepalive.ps1 -Url "https://tu-servicio.onrender.com/api/v1/subscription-plans" -IntervalSeconds 600
-```
-
-- Linux/macOS:
-```bash
-bash ./scripts/keepalive.sh "https://tu-servicio.onrender.com/api/v1/subscription-plans" 600
-```
-
-## Notas
+## Notas funcionales
 
 - `user_id` proviene de IAM y se persiste sin FK cruzada.
-- `stripe_subscription_id` se guarda como referencia externa cuando aplique.
-- Para crear/cambiar suscripcion en Stripe se espera `STRIPE_PRICE_ID` en `plan_features.feature_code`.
-- Al iniciar, el servicio asegura planes base `Free`, `Plus`, `Pro` y sincroniza su `STRIPE_PRICE_ID` desde `STRIPE_PRICE_FREE`, `STRIPE_PRICE_PLUS`, `STRIPE_PRICE_PRO`.
-- `POST /api/v1/subscriptions` acepta `stripe_customer_id` para crear suscripcion real en Stripe.
+- Se mantiene contrato actual con API Gateway y rutas existentes.
 - No existen tablas de `payments`, `invoices`, `transactions` o `billing` en este servicio.
