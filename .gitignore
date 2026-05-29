@@ -6,6 +6,8 @@
 
 # IDE
 .idea/
+*.iml
+out/
 
 # Build outputs
 *.exe
