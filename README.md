@@ -1,195 +1,101 @@
-ï»¿# Microservice Subscriptions Service
+# Microservice Subscriptions Service
 
-Microservice de SEMS para administrar planes de suscripcion, caracteristicas de planes y ciclo de vida de suscripciones. No maneja pagos directos.
+Microservicio de SEMS para administrar planes y ciclo de vida de suscripciones.
 
-## Arquitectura
+## Local quickstart
 
-- Go + Clean Architecture + DDD
-- Capas: `domain`, `application`, `infrastructure`, `interfaces`
-- Persistencia: PostgreSQL (Neon) con GORM
-- Integraciones externas: Stripe (adapter), Kafka (publisher)
-- API REST lista para exponer detras de API Gateway
+- Config-Service local: `http://localhost:8090`
+- API Gateway local: `http://localhost:8081`
+- Puerto local de este microservicio: `8083`
+- Base URL local final: `http://localhost:8083`
 
 ## Variables de entorno
 
-- `SERVER_PORT` (ej: `8081`)
-- `DATABASE_URL` (opcional) o variables separadas:
-- `POSTGRES_HOST`
-- `POSTGRES_PORT`
-- `POSTGRES_DB`
-- `POSTGRES_USER`
-- `POSTGRES_PASSWORD`
-- `POSTGRES_SSLMODE`
-- `POSTGRES_CHANNEL_BINDING`
+### No sensibles
+
+- `SERVER_PORT=8082`
+- `SERVICE_NAME=subscriptions-service`
+- `CONFIG_SERVICE_URL=http://localhost:8090`
+- `CONFIG_SERVICE_TIMEOUT_MS=3000`
+
+### Sensibles
+
+- `DATABASE_URL` o `POSTGRES_*` (incluye password)
 - `STRIPE_SECRET_KEY`
+- `STRIPE_PUBLISHABLE_KEY`
 - `STRIPE_WEBHOOK_SECRET`
-- `STRIPE_PRICE_FREE`
-- `STRIPE_PRICE_PLUS`
-- `STRIPE_PRICE_PRO`
-- `KAFKA_ENABLED` (ej: `true`)
-- `KAFKA_BOOTSTRAP_SERVERS` (ej: `kafka-3e5f04c8-sems-project.k.aivencloud.com:13780`)
-- `KAFKA_BROKERS` (ej: `kafka-3e5f04c8-sems-project.k.aivencloud.com:13780`)
-- `KAFKA_CLIENT_ID` (ej: `subscriptions-service`)
-- `KAFKA_USERNAME` (ej: `avnadmin`)
-- `KAFKA_PASSWORD`
-- `KAFKA_SECURITY_PROTOCOL` (`SASL_SSL` para Aiven, `PLAINTEXT` para local)
-- `KAFKA_SASL_MECHANISM` (`SCRAM-SHA-256` para Aiven)
-- `KAFKA_CA_CERT_PATH` (opcional)
-- `KAFKA_CA_CERT` (opcional)
+- `KAFKA_PASSWORD` (si aplica)
+- `KAFKA_CA_CERT` / `KAFKA_CA_CERT_PATH` (si aplica)
 
-Usa `.env.example` como plantilla y guarda tus secretos en `.env` (ignorado por Git).
+## Config-Service integration
 
-## Kafka en Aiven (local y Render)
+Al iniciar, el servicio consulta:
 
-Variables minimas para Aiven:
+- `GET /api/v1/config/services`
+- `GET /api/v1/config/kafka`
+- `GET /api/v1/config/{service-name}`
 
-- `KAFKA_ENABLED=true`
-- `KAFKA_BOOTSTRAP_SERVERS=kafka-3e5f04c8-sems-project.k.aivencloud.com:13780`
-- `KAFKA_BROKERS=kafka-3e5f04c8-sems-project.k.aivencloud.com:13780`
-- `KAFKA_USERNAME=avnadmin`
-- `KAFKA_PASSWORD=<tu-password-real>`
-- `KAFKA_SECURITY_PROTOCOL=SASL_SSL`
-- `KAFKA_SASL_MECHANISM=SCRAM-SHA-256`
+Con fallback local para no romper el arranque si Config-Service no responde.
 
-Para local con Aiven no necesitas Docker Kafka ni `localhost:9092`, porque el broker esta online.
+## Health checks
 
-Opcional para local con Kafka propio:
+Endpoints públicos sin autenticación:
 
-- `KAFKA_SECURITY_PROTOCOL=PLAINTEXT`
-- `KAFKA_BOOTSTRAP_SERVERS=localhost:9092`
-- `KAFKA_BROKERS=localhost:9092`
+- `GET /health`
+- `GET /api/v1/health`
 
-Reglas de Git:
+## Rutas reales expuestas
 
-- `.env` no se sube a GitHub (contiene secretos reales).
-- `.env.example` si se sube a GitHub (solo placeholders).
-
-## Endpoints
-
-### Subscription Plans
+Route prefix: `/api/v1`
 
 - `GET /api/v1/subscription-plans`
 - `GET /api/v1/subscription-plans/:planId`
 - `POST /api/v1/subscription-plans`
 - `PUT /api/v1/subscription-plans/:planId`
 - `PATCH /api/v1/subscription-plans/:planId/deactivate`
-
-### Subscriptions
-
 - `GET /api/v1/subscriptions/:subscriptionId`
 - `GET /api/v1/subscriptions/users/:userId`
 - `POST /api/v1/subscriptions`
 - `PATCH /api/v1/subscriptions/:subscriptionId/cancel`
 - `PATCH /api/v1/subscriptions/:subscriptionId/change-plan`
-
-### Webhooks
-
 - `POST /api/v1/webhooks/stripe`
 
-## Estados de suscripcion
+## CORS local
 
-- `ACTIVE`
-- `INACTIVE`
-- `CANCELLED`
-- `PENDING_RENEWAL`
-- `EXPIRED`
+Permitidos:
 
-## Migraciones
+- `http://localhost:3000`
+- `http://localhost:5173`
 
-El servicio valida/crea las tablas requeridas al iniciar:
+Configuración activa:
 
-- `subscription_plans`
-- `plan_features`
-- `subscriptions`
+- `Access-Control-Allow-Credentials: true`
+- Methods: `GET, POST, PUT, PATCH, DELETE, OPTIONS`
+- Headers: `Authorization, Content-Type, Origin, Accept, X-Requested-With`
 
-## Ejecutar
+## Auth/JWT
+
+Este microservicio actualmente no aplica middleware JWT propio. Si en Gateway usas `API_GATEWAY_AUTH_REQUIRED=false`, se puede probar directo sin token.
+
+Endpoints públicos recomendados en Gateway:
+
+- `/health`
+- `/api/v1/health`
+- `/api/v1/webhooks/stripe`
+
+## Dependencias locales
+
+Kafka local (ya levantado):
+
+```powershell
+docker ps
+```
+
+PostgreSQL: asegúrate de que `DATABASE_URL` o `POSTGRES_*` apunten a una instancia accesible.
+
+## Ejecutar local
 
 ```bash
 go mod tidy
 go run .
 ```
-
-Servicio por defecto en `http://localhost:8081`.
-
-## Docker
-
-Construir la imagen:
-
-```bash
-docker build -t microservice-subscriptions-service .
-```
-
-Ejecutar localmente usando tu `.env`:
-
-```bash
-docker run --env-file .env -p 8082:8082 microservice-subscriptions-service
-```
-
-Si no defines `SERVER_PORT`, el contenedor usa `8081`:
-
-```bash
-docker run --env-file .env -p 8081:8081 microservice-subscriptions-service
-```
-
-## Deploy en Render
-
-### Opcion recomendada: sin Docker
-
-Este repositorio incluye `render.yaml` para desplegar como servicio Go nativo.
-
-1. Sube el repo a GitHub.
-2. En Render, crea un nuevo Blueprint o Web Service desde el repo.
-3. Si usas Blueprint, Render leera `render.yaml`.
-4. Agrega las variables marcadas como secretas:
-   - `DATABASE_URL`
-   - `STRIPE_SECRET_KEY`
-   - `STRIPE_PUBLISHABLE_KEY`
-   - `STRIPE_WEBHOOK_SECRET`
-   - `STRIPE_PRICE_FREE`
-   - `STRIPE_PRICE_PLUS`
-   - `STRIPE_PRICE_PRO`
-   - `KAFKA_ENABLED`
-   - `KAFKA_BOOTSTRAP_SERVERS`
-   - `KAFKA_BROKERS`
-   - `KAFKA_USERNAME`
-   - `KAFKA_PASSWORD`
-   - `KAFKA_SECURITY_PROTOCOL`
-   - `KAFKA_SASL_MECHANISM`
-5. Build command: `go build -tags netgo -ldflags "-s -w" -o app .`
-6. Start command: `./app`
-
-Render inyecta `PORT` automaticamente y la app lo usa antes que `SERVER_PORT`.
-El health check esta disponible en `GET /health`.
-
-Estas mismas variables Kafka deben ir en Render:
-
-`Service -> Environment -> Environment Variables`
-
-### Opcion con Docker
-
-Tambien puedes crear el Web Service seleccionando runtime Docker. Render usara el
-`Dockerfile` del repo y las mismas variables de entorno. No subas `.env` a Git ni
-lo copies dentro de la imagen.
-
-## Keep-Alive (Render/Free plans)
-
-Puedes usar un pinger externo para mantener vivo el servicio:
-
-- Windows PowerShell:
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\keepalive.ps1 -Url "https://tu-servicio.onrender.com/api/v1/subscription-plans" -IntervalSeconds 600
-```
-
-- Linux/macOS:
-```bash
-bash ./scripts/keepalive.sh "https://tu-servicio.onrender.com/api/v1/subscription-plans" 600
-```
-
-## Notas
-
-- `user_id` proviene de IAM y se persiste sin FK cruzada.
-- `stripe_subscription_id` se guarda como referencia externa cuando aplique.
-- Para crear/cambiar suscripcion en Stripe se espera `STRIPE_PRICE_ID` en `plan_features.feature_code`.
-- Al iniciar, el servicio asegura planes base `Free`, `Plus`, `Pro` y sincroniza su `STRIPE_PRICE_ID` desde `STRIPE_PRICE_FREE`, `STRIPE_PRICE_PLUS`, `STRIPE_PRICE_PRO`.
-- `POST /api/v1/subscriptions` acepta `stripe_customer_id` para crear suscripcion real en Stripe.
-- No existen tablas de `payments`, `invoices`, `transactions` o `billing` en este servicio.

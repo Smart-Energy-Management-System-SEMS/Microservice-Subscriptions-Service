@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"microservice-subscriptions-service/subscriptions"
@@ -50,12 +51,45 @@ func main() {
 
 	planCommand := commandservices.NewPlanCommandService(planRepo)
 	planQuery := queryservices.NewPlanQueryService(planRepo)
-	subscriptionCommand := commandservices.NewSubscriptionCommandService(subRepo, planRepo, stripeServiceACL, publisher)
+	subscriptionCommand := commandservices.NewSubscriptionCommandService(
+		subRepo,
+		planRepo,
+		stripeServiceACL,
+		publisher,
+		commandservices.SubscriptionTopics{
+			Created:     cfg.KafkaTopicSubscriptionCreated,
+			Cancelled:   cfg.KafkaTopicSubscriptionCancelled,
+			PlanChanged: cfg.KafkaTopicSubscriptionPlanChanged,
+		},
+	)
 	subscriptionQuery := queryservices.NewSubscriptionQueryService(subRepo)
-	stripeWebhookHandler := eventhandlers.NewStripeWebhookHandler(subRepo, publisher)
+	stripeWebhookHandler := eventhandlers.NewStripeWebhookHandler(
+		subRepo,
+		publisher,
+		eventhandlers.StripeWebhookTopics{
+			Expired: cfg.KafkaTopicSubscriptionExpired,
+			Updated: cfg.KafkaTopicSubscriptionUpdated,
+		},
+	)
 
 	controller := controllers.NewSubscriptionController(planCommand, planQuery, subscriptionCommand, subscriptionQuery, stripeWebhookHandler, cfg.StripeWebhookSecret)
 	r := gin.Default()
+	r.SetTrustedProxies(nil)
+	r.Use(func(c *gin.Context) {
+		origin := c.GetHeader("Origin")
+		if origin == "http://localhost:3000" || origin == "http://localhost:5173" {
+			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+		}
+		c.Writer.Header().Set("Vary", "Origin")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Origin, Accept, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		if c.Request.Method == http.MethodOptions {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+		c.Next()
+	})
 	subscriptions.RegisterRoutes(r, controller)
 
 	if err = r.Run(":" + cfg.ServerPort); err != nil {

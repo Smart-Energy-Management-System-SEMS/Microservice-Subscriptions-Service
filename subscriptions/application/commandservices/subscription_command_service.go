@@ -23,10 +23,26 @@ type SubscriptionCommandService struct {
 	stripe        outboundservices.StripeService
 	events        outboundservices.EventPublisher
 	manager       *services.SubscriptionManager
+	topics        SubscriptionTopics
 }
 
-func NewSubscriptionCommandService(subscriptions domainrepo.SubscriptionRepository, plans domainrepo.SubscriptionPlanRepository, stripe outboundservices.StripeService, events outboundservices.EventPublisher) *SubscriptionCommandService {
-	return &SubscriptionCommandService{subscriptions: subscriptions, plans: plans, stripe: stripe, events: events, manager: services.NewSubscriptionManager()}
+type SubscriptionTopics struct {
+	Created     string
+	Cancelled   string
+	PlanChanged string
+}
+
+func NewSubscriptionCommandService(subscriptions domainrepo.SubscriptionRepository, plans domainrepo.SubscriptionPlanRepository, stripe outboundservices.StripeService, events outboundservices.EventPublisher, topics SubscriptionTopics) *SubscriptionCommandService {
+	if strings.TrimSpace(topics.Created) == "" {
+		topics.Created = "SubscriptionCreated"
+	}
+	if strings.TrimSpace(topics.Cancelled) == "" {
+		topics.Cancelled = "SubscriptionCancelled"
+	}
+	if strings.TrimSpace(topics.PlanChanged) == "" {
+		topics.PlanChanged = "SubscriptionPlanChanged"
+	}
+	return &SubscriptionCommandService{subscriptions: subscriptions, plans: plans, stripe: stripe, events: events, manager: services.NewSubscriptionManager(), topics: topics}
 }
 
 func (s *SubscriptionCommandService) Create(cmd commands.CreateSubscriptionCommand) (*entities.Subscription, error) {
@@ -52,7 +68,7 @@ func (s *SubscriptionCommandService) Create(cmd commands.CreateSubscriptionComma
 	if err = s.subscriptions.Create(subscription); err != nil {
 		return nil, err
 	}
-	s.publish("SubscriptionCreated", subscription)
+	s.publish(s.topics.Created, subscription)
 	return subscription, nil
 }
 
@@ -76,7 +92,7 @@ func (s *SubscriptionCommandService) Cancel(cmd commands.CancelSubscriptionComma
 	if err = s.subscriptions.Update(subscription); err != nil {
 		return nil, err
 	}
-	s.publish("SubscriptionCancelled", subscription)
+	s.publish(s.topics.Cancelled, subscription)
 	return subscription, nil
 }
 
@@ -110,7 +126,7 @@ func (s *SubscriptionCommandService) ChangePlan(cmd commands.ChangePlanCommand) 
 	if err = s.subscriptions.Update(subscription); err != nil {
 		return nil, err
 	}
-	s.publish("SubscriptionPlanChanged", subscription)
+	s.publish(s.topics.PlanChanged, subscription)
 	return subscription, nil
 }
 

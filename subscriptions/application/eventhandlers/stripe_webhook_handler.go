@@ -2,6 +2,7 @@ package eventhandlers
 
 import (
 	"encoding/json"
+	"strings"
 	"time"
 
 	stripe "github.com/stripe/stripe-go/v79"
@@ -14,10 +15,22 @@ import (
 type StripeWebhookHandler struct {
 	subscriptions domainrepo.SubscriptionRepository
 	events        outboundservices.EventPublisher
+	topics        StripeWebhookTopics
 }
 
-func NewStripeWebhookHandler(subscriptions domainrepo.SubscriptionRepository, events outboundservices.EventPublisher) *StripeWebhookHandler {
-	return &StripeWebhookHandler{subscriptions: subscriptions, events: events}
+type StripeWebhookTopics struct {
+	Expired string
+	Updated string
+}
+
+func NewStripeWebhookHandler(subscriptions domainrepo.SubscriptionRepository, events outboundservices.EventPublisher, topics StripeWebhookTopics) *StripeWebhookHandler {
+	if strings.TrimSpace(topics.Expired) == "" {
+		topics.Expired = "SubscriptionExpired"
+	}
+	if strings.TrimSpace(topics.Updated) == "" {
+		topics.Updated = "SubscriptionUpdated"
+	}
+	return &StripeWebhookHandler{subscriptions: subscriptions, events: events, topics: topics}
 }
 
 func (h *StripeWebhookHandler) Handle(payload []byte, signature string, secret string) error {
@@ -62,9 +75,9 @@ func (h *StripeWebhookHandler) handleSubscriptionEvent(event stripe.Event) error
 		if marshalErr == nil {
 			switch event.Type {
 			case "customer.subscription.deleted":
-				_ = h.events.Publish("SubscriptionExpired", payload)
+				_ = h.events.Publish(h.topics.Expired, payload)
 			case "customer.subscription.updated":
-				_ = h.events.Publish("SubscriptionUpdated", payload)
+				_ = h.events.Publish(h.topics.Updated, payload)
 			}
 		}
 	}

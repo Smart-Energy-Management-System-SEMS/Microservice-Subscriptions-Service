@@ -9,6 +9,9 @@ func RegisterRoutes(r *gin.Engine, c *controllers.SubscriptionController) {
 	r.GET("/health", func(ctx *gin.Context) {
 		ctx.JSON(200, gin.H{"status": "ok"})
 	})
+	r.GET("/api/v1/health", func(ctx *gin.Context) {
+		ctx.JSON(200, gin.H{"status": "ok"})
+	})
 
 	v1 := r.Group("/api/v1")
 	{
