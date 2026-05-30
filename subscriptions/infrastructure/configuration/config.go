@@ -58,7 +58,7 @@ func Load() AppConfig {
 		databaseURL = buildPostgresURLFromEnv()
 	}
 
-	cfg.ServerPort = firstNonEmpty(os.Getenv("PORT"), os.Getenv("SERVER_PORT"), remote.ServerPort, "8081")
+	cfg.ServerPort = firstNonEmpty(os.Getenv("PORT"), os.Getenv("SERVER_PORT"), remote.ServerPort, "8080")
 	cfg.DatabaseURL = firstNonEmpty(databaseURL, remote.DatabaseURL)
 	cfg.StripePublishableKey = firstNonEmpty(os.Getenv("STRIPE_PUBLISHABLE_KEY"), remote.StripePublishableKey)
 	cfg.StripeSecretKey = firstNonEmpty(os.Getenv("STRIPE_SECRET_KEY"), remote.StripeSecretKey)
