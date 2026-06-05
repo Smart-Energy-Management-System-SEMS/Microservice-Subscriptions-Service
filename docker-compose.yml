@@ -1,0 +1,94 @@
+services:
+  subscriptions-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: subscriptions-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    environment:
+      PORT: 8080
+      SERVER_PORT: 8080
+      SERVICE_NAME: subscriptions-service
+      GIN_MODE: release
+      CONFIG_SERVICE_URL: ${COMPOSE_CONFIG_SERVICE_URL:-http://host.docker.internal:8090}
+      CONFIG_SERVICE_TIMEOUT_MS: ${COMPOSE_CONFIG_SERVICE_TIMEOUT_MS:-3000}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${COMPOSE_POSTGRES_DB:-subscriptions}
+      POSTGRES_USER: ${COMPOSE_POSTGRES_USER:-subscriptions_user}
+      POSTGRES_PASSWORD: ${COMPOSE_POSTGRES_PASSWORD:-subscriptions_pass}
+      POSTGRES_SSLMODE: disable
+      POSTGRES_CHANNEL_BINDING: disable
+      KAFKA_ENABLED: ${COMPOSE_KAFKA_ENABLED:-true}
+      KAFKA_BOOTSTRAP_SERVERS: ${COMPOSE_KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}
+      KAFKA_BROKERS: ${COMPOSE_KAFKA_BROKERS:-kafka:9092}
+      KAFKA_CLIENT_ID: ${COMPOSE_KAFKA_CLIENT_ID:-subscriptions-service}
+      KAFKA_SECURITY_PROTOCOL: ${COMPOSE_KAFKA_SECURITY_PROTOCOL:-PLAINTEXT}
+      KAFKA_SASL_MECHANISM: ${COMPOSE_KAFKA_SASL_MECHANISM:-}
+      KAFKA_USERNAME: ${COMPOSE_KAFKA_USERNAME:-}
+      KAFKA_PASSWORD: ${COMPOSE_KAFKA_PASSWORD:-}
+      KAFKA_CA_CERT: ${COMPOSE_KAFKA_CA_CERT:-}
+      KAFKA_CA_CERT_PATH: ${COMPOSE_KAFKA_CA_CERT_PATH:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_CURRENCY: ${STRIPE_CURRENCY:-PEN}
+      STRIPE_PRICE_FREE: ${STRIPE_PRICE_FREE:-}
+      STRIPE_PRICE_PLUS: ${STRIPE_PRICE_PLUS:-}
+      STRIPE_PRICE_PRO: ${STRIPE_PRICE_PRO:-}
+    ports:
+      - "${APP_PORT:-8083}:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: subscriptions-postgres
+    environment:
+      POSTGRES_DB: ${COMPOSE_POSTGRES_DB:-subscriptions}
+      POSTGRES_USER: ${COMPOSE_POSTGRES_USER:-subscriptions_user}
+      POSTGRES_PASSWORD: ${COMPOSE_POSTGRES_PASSWORD:-subscriptions_pass}
+    ports:
+      - "${POSTGRES_EXPOSE_PORT:-5432}:5432"
+    volumes:
+      - subscriptions_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${COMPOSE_POSTGRES_USER:-subscriptions_user} -d ${COMPOSE_POSTGRES_DB:-subscriptions}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  kafka:
+    image: bitnami/kafka:3.7
+    container_name: subscriptions-kafka
+    environment:
+      KAFKA_CFG_NODE_ID: 1
+      KAFKA_CFG_PROCESS_ROLES: broker,controller
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:${KAFKA_EXTERNAL_PORT:-9092}
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_KRAFT_CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    ports:
+      - "${KAFKA_EXTERNAL_PORT:-9092}:9094"
+    volumes:
+      - subscriptions_kafka_data:/bitnami/kafka
+    restart: unless-stopped
+
+volumes:
+  subscriptions_postgres_data:
+  subscriptions_kafka_data:

@@ -32,6 +32,38 @@ Notas:
 docker build -t subscriptions-service:local .
 ```
 
+## Run con Docker Compose
+
+```bash
+docker compose up -d --build
+```
+
+Esto levanta:
+- `subscriptions-service`
+- `postgres`
+- `kafka`
+
+Valores por defecto importantes:
+- app: `http://localhost:8083`
+- postgres: `localhost:5432`
+- kafka para apps en tu host: `localhost:9092`
+- kafka dentro de la red Docker: `kafka:9092`
+- config-service externo al compose: `http://host.docker.internal:8090`
+
+Si tu `config-service` corre local en tu máquina, el valor por defecto ya funciona desde el contenedor.
+El compose usa variables con prefijo `COMPOSE_` para no chocar con tu `.env` local de `go run`.
+Si quieres cambiar puertos o credenciales, puedes sobrescribir variables al ejecutar:
+
+```bash
+APP_PORT=8083 \
+COMPOSE_CONFIG_SERVICE_URL=http://host.docker.internal:8090 \
+POSTGRES_EXPOSE_PORT=5432 \
+KAFKA_EXTERNAL_PORT=9092 \
+docker compose up -d --build
+```
+
+Si prefieres que este micro no consulte el config-service, puedes dejar `COMPOSE_CONFIG_SERVICE_URL` vacío y pasar las variables necesarias por entorno.
+
 ## Run local con contenedor
 
 ```bash
