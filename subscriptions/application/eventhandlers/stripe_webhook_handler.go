@@ -25,10 +25,10 @@ type StripeWebhookTopics struct {
 
 func NewStripeWebhookHandler(subscriptions domainrepo.SubscriptionRepository, events outboundservices.EventPublisher, topics StripeWebhookTopics) *StripeWebhookHandler {
 	if strings.TrimSpace(topics.Expired) == "" {
-		topics.Expired = "SubscriptionExpired"
+		topics.Expired = "subscription.expired"
 	}
 	if strings.TrimSpace(topics.Updated) == "" {
-		topics.Updated = "SubscriptionUpdated"
+		topics.Updated = "subscription.updated"
 	}
 	return &StripeWebhookHandler{subscriptions: subscriptions, events: events, topics: topics}
 }

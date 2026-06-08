@@ -48,13 +48,13 @@ type SubscriptionTopics struct {
 // out of the box.
 func NewSubscriptionCommandService(subscriptions domainrepo.SubscriptionRepository, plans domainrepo.SubscriptionPlanRepository, stripe outboundservices.StripeService, events outboundservices.EventPublisher, topics SubscriptionTopics) *SubscriptionCommandService {
 	if strings.TrimSpace(topics.Created) == "" {
-		topics.Created = "SubscriptionCreated"
+		topics.Created = "subscription.created"
 	}
 	if strings.TrimSpace(topics.Cancelled) == "" {
-		topics.Cancelled = "SubscriptionCancelled"
+		topics.Cancelled = "subscription.cancelled"
 	}
 	if strings.TrimSpace(topics.PlanChanged) == "" {
-		topics.PlanChanged = "SubscriptionPlanChanged"
+		topics.PlanChanged = "subscription.plan.changed"
 	}
 	return &SubscriptionCommandService{subscriptions: subscriptions, plans: plans, stripe: stripe, events: events, manager: services.NewSubscriptionManager(), topics: topics}
 }

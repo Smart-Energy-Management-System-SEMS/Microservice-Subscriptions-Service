@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/url"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -15,28 +15,28 @@ import (
 )
 
 type AppConfig struct {
-	ServiceName          string
-	ConfigServiceURL     string
-	ConfigServiceTimeout time.Duration
-	ServerPort           string
-	DatabaseURL          string
-	StripePublishableKey string
-	StripeSecretKey      string
-	StripeWebhookSecret  string
-	StripeCurrency       string
-	StripePriceFree      string
-	StripePricePlus      string
-	StripePricePro       string
-	KafkaEnabled         bool
-	KafkaBootstrapServer string
-	KafkaBrokers         []string
-	KafkaClientID        string
-	KafkaUsername        string
-	KafkaPassword        string
-	KafkaSecurityProto   string
-	KafkaSASLMechanism   string
-	KafkaCACert          string
-	KafkaCACertPath      string
+	ServiceName                       string
+	ConfigServiceURL                  string
+	ConfigServiceTimeout              time.Duration
+	ServerPort                        string
+	DatabaseURL                       string
+	StripePublishableKey              string
+	StripeSecretKey                   string
+	StripeWebhookSecret               string
+	StripeCurrency                    string
+	StripePriceFree                   string
+	StripePricePlus                   string
+	StripePricePro                    string
+	KafkaEnabled                      bool
+	KafkaBootstrapServer              string
+	KafkaBrokers                      []string
+	KafkaClientID                     string
+	KafkaUsername                     string
+	KafkaPassword                     string
+	KafkaSecurityProto                string
+	KafkaSASLMechanism                string
+	KafkaCACert                       string
+	KafkaCACertPath                   string
 	KafkaTopicSubscriptionCreated     string
 	KafkaTopicSubscriptionCancelled   string
 	KafkaTopicSubscriptionPlanChanged string
@@ -90,27 +90,27 @@ func Load() AppConfig {
 	cfg.KafkaTopicSubscriptionCreated = firstNonEmpty(
 		os.Getenv("KAFKA_TOPIC_SUBSCRIPTION_CREATED"),
 		remote.KafkaTopicSubscriptionCreated,
-		"SubscriptionCreated",
+		"subscription.created",
 	)
 	cfg.KafkaTopicSubscriptionCancelled = firstNonEmpty(
 		os.Getenv("KAFKA_TOPIC_SUBSCRIPTION_CANCELLED"),
 		remote.KafkaTopicSubscriptionCancelled,
-		"SubscriptionCancelled",
+		"subscription.cancelled",
 	)
 	cfg.KafkaTopicSubscriptionPlanChanged = firstNonEmpty(
 		os.Getenv("KAFKA_TOPIC_SUBSCRIPTION_PLAN_CHANGED"),
 		remote.KafkaTopicSubscriptionPlanChanged,
-		"SubscriptionPlanChanged",
+		"subscription.plan.changed",
 	)
 	cfg.KafkaTopicSubscriptionExpired = firstNonEmpty(
 		os.Getenv("KAFKA_TOPIC_SUBSCRIPTION_EXPIRED"),
 		remote.KafkaTopicSubscriptionExpired,
-		"SubscriptionExpired",
+		"subscription.expired",
 	)
 	cfg.KafkaTopicSubscriptionUpdated = firstNonEmpty(
 		os.Getenv("KAFKA_TOPIC_SUBSCRIPTION_UPDATED"),
 		remote.KafkaTopicSubscriptionUpdated,
-		"SubscriptionUpdated",
+		"subscription.updated",
 	)
 
 	return cfg
@@ -213,30 +213,30 @@ func getEnvAsDurationMS(key string, defaultMS int) time.Duration {
 }
 
 type remoteConfig struct {
-	ServerPort string `json:"serverPort"`
-	DatabaseURL string `json:"databaseUrl"`
-	StripePublishableKey string `json:"stripePublishableKey"`
-	StripeSecretKey string `json:"stripeSecretKey"`
-	StripeWebhookSecret string `json:"stripeWebhookSecret"`
-	StripeCurrency string `json:"stripeCurrency"`
-	StripePriceFree string `json:"stripePriceFree"`
-	StripePricePlus string `json:"stripePricePlus"`
-	StripePricePro string `json:"stripePricePro"`
-	KafkaEnabled *bool `json:"kafkaEnabled"`
-	KafkaBootstrapServer string `json:"kafkaBootstrapServers"`
-	KafkaBrokers []string `json:"kafkaBrokers"`
-	KafkaClientID string `json:"kafkaClientId"`
-	KafkaUsername string `json:"kafkaUsername"`
-	KafkaPassword string `json:"kafkaPassword"`
-	KafkaSecurityProto string `json:"kafkaSecurityProtocol"`
-	KafkaSASLMechanism string `json:"kafkaSaslMechanism"`
-	KafkaCACert string `json:"kafkaCaCert"`
-	KafkaCACertPath string `json:"kafkaCaCertPath"`
-	KafkaTopicSubscriptionCreated string `json:"topicSubscriptionCreated"`
-	KafkaTopicSubscriptionCancelled string `json:"topicSubscriptionCancelled"`
-	KafkaTopicSubscriptionPlanChanged string `json:"topicSubscriptionPlanChanged"`
-	KafkaTopicSubscriptionExpired string `json:"topicSubscriptionExpired"`
-	KafkaTopicSubscriptionUpdated string `json:"topicSubscriptionUpdated"`
+	ServerPort                        string   `json:"serverPort"`
+	DatabaseURL                       string   `json:"databaseUrl"`
+	StripePublishableKey              string   `json:"stripePublishableKey"`
+	StripeSecretKey                   string   `json:"stripeSecretKey"`
+	StripeWebhookSecret               string   `json:"stripeWebhookSecret"`
+	StripeCurrency                    string   `json:"stripeCurrency"`
+	StripePriceFree                   string   `json:"stripePriceFree"`
+	StripePricePlus                   string   `json:"stripePricePlus"`
+	StripePricePro                    string   `json:"stripePricePro"`
+	KafkaEnabled                      *bool    `json:"kafkaEnabled"`
+	KafkaBootstrapServer              string   `json:"kafkaBootstrapServers"`
+	KafkaBrokers                      []string `json:"kafkaBrokers"`
+	KafkaClientID                     string   `json:"kafkaClientId"`
+	KafkaUsername                     string   `json:"kafkaUsername"`
+	KafkaPassword                     string   `json:"kafkaPassword"`
+	KafkaSecurityProto                string   `json:"kafkaSecurityProtocol"`
+	KafkaSASLMechanism                string   `json:"kafkaSaslMechanism"`
+	KafkaCACert                       string   `json:"kafkaCaCert"`
+	KafkaCACertPath                   string   `json:"kafkaCaCertPath"`
+	KafkaTopicSubscriptionCreated     string   `json:"topicSubscriptionCreated"`
+	KafkaTopicSubscriptionCancelled   string   `json:"topicSubscriptionCancelled"`
+	KafkaTopicSubscriptionPlanChanged string   `json:"topicSubscriptionPlanChanged"`
+	KafkaTopicSubscriptionExpired     string   `json:"topicSubscriptionExpired"`
+	KafkaTopicSubscriptionUpdated     string   `json:"topicSubscriptionUpdated"`
 }
 
 func fetchRemoteConfig(configServiceURL, serviceName string, timeout time.Duration) remoteConfig {

@@ -86,9 +86,21 @@ KAFKA_BROKERS=localhost:9092
 KAFKA_SECURITY_PROTOCOL=PLAINTEXT
 DATABASE_URL=postgresql://user:password@localhost:5432/subscriptions?sslmode=disable
 GIN_MODE=release
+KAFKA_TOPIC_SUBSCRIPTION_CREATED=subscription.created
+KAFKA_TOPIC_SUBSCRIPTION_CANCELLED=subscription.cancelled
+KAFKA_TOPIC_SUBSCRIPTION_PLAN_CHANGED=subscription.plan.changed
+KAFKA_TOPIC_SUBSCRIPTION_EXPIRED=subscription.expired
+KAFKA_TOPIC_SUBSCRIPTION_UPDATED=subscription.updated
 
 go run .
 ```
+
+Topics Kafka por defecto de este micro:
+- `subscription.created`
+- `subscription.cancelled`
+- `subscription.plan.changed`
+- `subscription.expired`
+- `subscription.updated`
 
 ## Ejemplo Azure Container Apps
 
