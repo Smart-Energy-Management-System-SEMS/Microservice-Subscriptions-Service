@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"microservice-subscriptions-service/subscriptions"
@@ -75,9 +76,16 @@ func main() {
 	controller := controllers.NewSubscriptionController(planCommand, planQuery, subscriptionCommand, subscriptionQuery, stripeWebhookHandler, cfg.StripeWebhookSecret)
 	r := gin.Default()
 	r.SetTrustedProxies(nil)
+	allowedOrigins := make(map[string]struct{}, len(cfg.AllowedOrigins))
+	for _, origin := range cfg.AllowedOrigins {
+		trimmedOrigin := strings.TrimSpace(origin)
+		if trimmedOrigin != "" {
+			allowedOrigins[trimmedOrigin] = struct{}{}
+		}
+	}
 	r.Use(func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
-		if origin == "http://localhost:3000" || origin == "http://localhost:5173" {
+		if _, ok := allowedOrigins[origin]; ok {
 			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
 		}
 		c.Writer.Header().Set("Vary", "Origin")

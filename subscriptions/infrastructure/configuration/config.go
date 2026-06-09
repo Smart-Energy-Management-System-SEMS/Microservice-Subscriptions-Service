@@ -19,6 +19,7 @@ type AppConfig struct {
 	ConfigServiceURL                  string
 	ConfigServiceTimeout              time.Duration
 	ServerPort                        string
+	AllowedOrigins                    []string
 	DatabaseURL                       string
 	StripePublishableKey              string
 	StripeSecretKey                   string
@@ -31,6 +32,7 @@ type AppConfig struct {
 	KafkaBootstrapServer              string
 	KafkaBrokers                      []string
 	KafkaClientID                     string
+	KafkaConsumerGroup                string
 	KafkaUsername                     string
 	KafkaPassword                     string
 	KafkaSecurityProto                string
@@ -57,8 +59,22 @@ func Load() AppConfig {
 	if databaseURL == "" {
 		databaseURL = buildPostgresURLFromEnv()
 	}
+	allowedOrigins := firstNonEmpty(
+		os.Getenv("CORS_ALLOWED_ORIGINS"),
+		os.Getenv("ALLOWED_ORIGINS"),
+		remote.AllowedOrigins,
+		"http://localhost:3000,http://localhost:5173",
+	)
+	kafkaBrokers := firstNonEmpty(
+		os.Getenv("KAFKA_BROKERS"),
+		os.Getenv("KAFKA_BOOTSTRAP_SERVERS"),
+		strings.Join(remote.KafkaBrokers, ","),
+		remote.KafkaBootstrapServer,
+		"localhost:9092",
+	)
 
 	cfg.ServerPort = firstNonEmpty(os.Getenv("PORT"), os.Getenv("SERVER_PORT"), remote.ServerPort, "8080")
+	cfg.AllowedOrigins = splitCSV(allowedOrigins)
 	cfg.DatabaseURL = firstNonEmpty(databaseURL, remote.DatabaseURL)
 	cfg.StripePublishableKey = firstNonEmpty(os.Getenv("STRIPE_PUBLISHABLE_KEY"), remote.StripePublishableKey)
 	cfg.StripeSecretKey = firstNonEmpty(os.Getenv("STRIPE_SECRET_KEY"), remote.StripeSecretKey)
@@ -68,19 +84,10 @@ func Load() AppConfig {
 	cfg.StripePricePlus = firstNonEmpty(os.Getenv("STRIPE_PRICE_PLUS"), remote.StripePricePlus)
 	cfg.StripePricePro = firstNonEmpty(os.Getenv("STRIPE_PRICE_PRO"), remote.StripePricePro)
 	cfg.KafkaEnabled = getEnvAsBoolWithFallback("KAFKA_ENABLED", remote.KafkaEnabled, true)
-	cfg.KafkaBootstrapServer = firstNonEmpty(
-		os.Getenv("KAFKA_BOOTSTRAP_SERVERS"),
-		os.Getenv("KAFKA_BROKERS"),
-		remote.KafkaBootstrapServer,
-		"localhost:9092",
-	)
-	cfg.KafkaBrokers = splitCSV(firstNonEmpty(
-		os.Getenv("KAFKA_BROKERS"),
-		os.Getenv("KAFKA_BOOTSTRAP_SERVERS"),
-		strings.Join(remote.KafkaBrokers, ","),
-		"localhost:9092",
-	))
+	cfg.KafkaBootstrapServer = kafkaBrokers
+	cfg.KafkaBrokers = splitCSV(kafkaBrokers)
 	cfg.KafkaClientID = firstNonEmpty(os.Getenv("KAFKA_CLIENT_ID"), remote.KafkaClientID, "subscriptions-service")
+	cfg.KafkaConsumerGroup = firstNonEmpty(os.Getenv("KAFKA_CONSUMER_GROUP"), remote.KafkaConsumerGroup, "subscriptions-service")
 	cfg.KafkaUsername = firstNonEmpty(os.Getenv("KAFKA_USERNAME"), remote.KafkaUsername)
 	cfg.KafkaPassword = firstNonEmpty(os.Getenv("KAFKA_PASSWORD"), remote.KafkaPassword)
 	cfg.KafkaSecurityProto = firstNonEmpty(os.Getenv("KAFKA_SECURITY_PROTOCOL"), remote.KafkaSecurityProto, "PLAINTEXT")
@@ -214,6 +221,7 @@ func getEnvAsDurationMS(key string, defaultMS int) time.Duration {
 
 type remoteConfig struct {
 	ServerPort                        string   `json:"serverPort"`
+	AllowedOrigins                    string   `json:"allowedOrigins"`
 	DatabaseURL                       string   `json:"databaseUrl"`
 	StripePublishableKey              string   `json:"stripePublishableKey"`
 	StripeSecretKey                   string   `json:"stripeSecretKey"`
@@ -226,6 +234,7 @@ type remoteConfig struct {
 	KafkaBootstrapServer              string   `json:"kafkaBootstrapServers"`
 	KafkaBrokers                      []string `json:"kafkaBrokers"`
 	KafkaClientID                     string   `json:"kafkaClientId"`
+	KafkaConsumerGroup                string   `json:"kafkaConsumerGroup"`
 	KafkaUsername                     string   `json:"kafkaUsername"`
 	KafkaPassword                     string   `json:"kafkaPassword"`
 	KafkaSecurityProto                string   `json:"kafkaSecurityProtocol"`
@@ -359,6 +368,7 @@ func parseRemoteConfigBody(body []byte) remoteConfig {
 
 func mergeRemoteConfig(target *remoteConfig, source remoteConfig) {
 	target.ServerPort = firstNonEmpty(source.ServerPort, target.ServerPort)
+	target.AllowedOrigins = firstNonEmpty(source.AllowedOrigins, target.AllowedOrigins)
 	target.DatabaseURL = firstNonEmpty(source.DatabaseURL, target.DatabaseURL)
 	target.StripePublishableKey = firstNonEmpty(source.StripePublishableKey, target.StripePublishableKey)
 	target.StripeSecretKey = firstNonEmpty(source.StripeSecretKey, target.StripeSecretKey)
@@ -372,6 +382,7 @@ func mergeRemoteConfig(target *remoteConfig, source remoteConfig) {
 		target.KafkaBrokers = source.KafkaBrokers
 	}
 	target.KafkaClientID = firstNonEmpty(source.KafkaClientID, target.KafkaClientID)
+	target.KafkaConsumerGroup = firstNonEmpty(source.KafkaConsumerGroup, target.KafkaConsumerGroup)
 	target.KafkaUsername = firstNonEmpty(source.KafkaUsername, target.KafkaUsername)
 	target.KafkaPassword = firstNonEmpty(source.KafkaPassword, target.KafkaPassword)
 	target.KafkaSecurityProto = firstNonEmpty(source.KafkaSecurityProto, target.KafkaSecurityProto)
@@ -390,6 +401,7 @@ func mergeRemoteConfig(target *remoteConfig, source remoteConfig) {
 
 func isRemoteConfigEmpty(cfg remoteConfig) bool {
 	return strings.TrimSpace(cfg.ServerPort) == "" &&
+		strings.TrimSpace(cfg.AllowedOrigins) == "" &&
 		strings.TrimSpace(cfg.DatabaseURL) == "" &&
 		strings.TrimSpace(cfg.StripePublishableKey) == "" &&
 		strings.TrimSpace(cfg.StripeSecretKey) == "" &&
@@ -401,6 +413,7 @@ func isRemoteConfigEmpty(cfg remoteConfig) bool {
 		strings.TrimSpace(cfg.KafkaBootstrapServer) == "" &&
 		len(cfg.KafkaBrokers) == 0 &&
 		strings.TrimSpace(cfg.KafkaClientID) == "" &&
+		strings.TrimSpace(cfg.KafkaConsumerGroup) == "" &&
 		strings.TrimSpace(cfg.KafkaUsername) == "" &&
 		strings.TrimSpace(cfg.KafkaPassword) == "" &&
 		strings.TrimSpace(cfg.KafkaSecurityProto) == "" &&
