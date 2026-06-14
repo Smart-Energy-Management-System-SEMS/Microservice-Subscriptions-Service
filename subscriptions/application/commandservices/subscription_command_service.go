@@ -1,7 +1,6 @@
 package commandservices
 
 import (
-	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -9,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
+	"microservice-subscriptions-service/subscriptions/application/integrationevents"
 	"microservice-subscriptions-service/subscriptions/application/outboundservices"
 	"microservice-subscriptions-service/subscriptions/domain/model/commands"
 	"microservice-subscriptions-service/subscriptions/domain/model/entities"
@@ -35,26 +35,16 @@ type SubscriptionCommandService struct {
 	topics        SubscriptionTopics
 }
 
-// SubscriptionTopics groups the Kafka topic names used for each event so they
-// can be configured per environment.
 type SubscriptionTopics struct {
-	Created     string
-	Cancelled   string
-	PlanChanged string
+	Events string
 }
 
 // NewSubscriptionCommandService wires the dependencies. The blocks below apply
 // safe default topic names when none are configured, so the service still works
 // out of the box.
 func NewSubscriptionCommandService(subscriptions domainrepo.SubscriptionRepository, plans domainrepo.SubscriptionPlanRepository, stripe outboundservices.StripeService, events outboundservices.EventPublisher, topics SubscriptionTopics) *SubscriptionCommandService {
-	if strings.TrimSpace(topics.Created) == "" {
-		topics.Created = "subscription.created"
-	}
-	if strings.TrimSpace(topics.Cancelled) == "" {
-		topics.Cancelled = "subscription.cancelled"
-	}
-	if strings.TrimSpace(topics.PlanChanged) == "" {
-		topics.PlanChanged = "subscription.plan.changed"
+	if strings.TrimSpace(topics.Events) == "" {
+		topics.Events = integrationevents.DefaultSubscriptionsTopic
 	}
 	return &SubscriptionCommandService{subscriptions: subscriptions, plans: plans, stripe: stripe, events: events, manager: services.NewSubscriptionManager(), topics: topics}
 }
@@ -94,7 +84,7 @@ func (s *SubscriptionCommandService) Create(cmd commands.CreateSubscriptionComma
 	if err = s.subscriptions.Create(subscription); err != nil {
 		return nil, err
 	}
-	s.publish(s.topics.Created, subscription)
+	s.publish(integrationevents.EventTypeSubscriptionCreated, subscription, plan, nil)
 	return subscription, nil
 }
 
@@ -126,7 +116,7 @@ func (s *SubscriptionCommandService) Cancel(cmd commands.CancelSubscriptionComma
 	if err = s.subscriptions.Update(subscription); err != nil {
 		return nil, err
 	}
-	s.publish(s.topics.Cancelled, subscription)
+	s.publish(integrationevents.EventTypeSubscriptionCancelled, subscription, nil, nil)
 	return subscription, nil
 }
 
@@ -159,12 +149,21 @@ func (s *SubscriptionCommandService) ChangePlan(cmd commands.ChangePlanCommand) 
 	if subscription.StripeSubscriptionID != nil {
 		_ = s.stripe.ChangePlan(*subscription.StripeSubscriptionID, targetPriceID)
 	}
+	previousPlanID := subscription.PlanID
 	subscription.PlanID = cmd.NewPlanID
 	subscription.Status = valueobjects.StatusPendingRenewal
 	if err = s.subscriptions.Update(subscription); err != nil {
 		return nil, err
 	}
-	s.publish(s.topics.PlanChanged, subscription)
+	s.publish(integrationevents.EventTypeSubscriptionPlanChanged, subscription, plan, map[string]any{
+		"previousPlanId": previousPlanID,
+		"newPlanId":      cmd.NewPlanID,
+	})
+	s.publish(integrationevents.EventTypeSubscriptionRenewalRequested, subscription, plan, map[string]any{
+		"previousPlanId": previousPlanID,
+		"newPlanId":      cmd.NewPlanID,
+		"reason":         "plan_change",
+	})
 	return subscription, nil
 }
 
@@ -184,17 +183,25 @@ func extractStripePriceID(plan entities.SubscriptionPlan) (string, error) {
 	return "", errors.New("plan is missing STRIPE_PRICE_ID in plan features")
 }
 
-// publish serialises a subscription to JSON and sends it on the given topic.
-// It is deliberately fault-tolerant: if there is no publisher or marshalling
-// fails, it just returns. Event publishing is a side effect and must never break
-// the main use case that already succeeded.
-func (s *SubscriptionCommandService) publish(topic string, subscription *entities.Subscription) {
+// publish sends a normalized event envelope to the grouped subscriptions topic.
+func (s *SubscriptionCommandService) publish(eventType string, subscription *entities.Subscription, plan *entities.SubscriptionPlan, extraData map[string]any) {
 	if s.events == nil {
 		return
 	}
-	payload, err := json.Marshal(subscription)
+	enrichedData := make(map[string]any, len(extraData)+5)
+	for key, value := range extraData {
+		enrichedData[key] = value
+	}
+	if plan != nil {
+		enrichedData["planName"] = plan.Name
+		enrichedData["billingPeriod"] = plan.BillingPeriod
+		enrichedData["currency"] = plan.Currency
+		enrichedData["amount"] = plan.Price
+		enrichedData["requiresPayment"] = plan.Price > 0
+	}
+	payload, err := integrationevents.MarshalSubscriptionEvent(eventType, time.Now().UTC(), subscription, enrichedData)
 	if err != nil {
 		return
 	}
-	_ = s.events.Publish(topic, payload)
+	_ = s.events.Publish(s.topics.Events, payload)
 }

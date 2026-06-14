@@ -23,7 +23,6 @@ GIN_MODE=release
 
 Notas:
 - En Azure no uses `localhost` para servicios externos.
-- Localmente con Kafka en Docker usa `KAFKA_BROKERS=localhost:9092`.
 - El servicio acepta `PORT` (y mantiene compatibilidad con `SERVER_PORT`).
 
 ## Build de contenedor
@@ -46,7 +45,6 @@ Esto levanta:
 Valores por defecto importantes:
 - app: `http://localhost:8083`
 - postgres: `localhost:5432`
-- kafka para apps en tu host: `localhost:9092`
 - kafka dentro de la red Docker: `kafka:9092`
 - config-service externo al compose: `http://host.docker.internal:8090`
 
@@ -76,31 +74,33 @@ docker run --rm -p 8080:8080 \
   subscriptions-service:local
 ```
 
-## Ejemplo local (sin contenedor)
+Topic Kafka por defecto de este micro:
+- `subscriptions.events`
 
-```bash
-# .env (local)
-PORT=8083
-CONFIG_SERVICE_URL=http://localhost:8090
-KAFKA_BROKERS=localhost:9092
-KAFKA_SECURITY_PROTOCOL=PLAINTEXT
-DATABASE_URL=postgresql://user:password@localhost:5432/subscriptions?sslmode=disable
-GIN_MODE=release
-KAFKA_TOPIC_SUBSCRIPTION_CREATED=subscription.created
-KAFKA_TOPIC_SUBSCRIPTION_CANCELLED=subscription.cancelled
-KAFKA_TOPIC_SUBSCRIPTION_PLAN_CHANGED=subscription.plan.changed
-KAFKA_TOPIC_SUBSCRIPTION_EXPIRED=subscription.expired
-KAFKA_TOPIC_SUBSCRIPTION_UPDATED=subscription.updated
-
-go run .
-```
-
-Topics Kafka por defecto de este micro:
+Eventos publicados dentro del payload:
 - `subscription.created`
 - `subscription.cancelled`
 - `subscription.plan.changed`
+- `subscription.renewal.requested`
 - `subscription.expired`
 - `subscription.updated`
+
+Formato del evento:
+
+```json
+{
+  "eventType": "subscription.created",
+  "userId": "user-123",
+  "occurredAt": "2026-06-12T22:30:00Z",
+  "data": {
+    "subscriptionId": "sub-123",
+    "planId": "plan-456",
+    "status": "ACTIVE",
+    "requiresPayment": true,
+    "amount": 15
+  }
+}
+```
 
 ## Ejemplo Azure Container Apps
 
@@ -117,11 +117,12 @@ az containerapp create \
     PORT=8080 \
     GIN_MODE=release \
     CONFIG_SERVICE_URL=https://<config-service-url> \
-    KAFKA_BROKERS=<kafka-broker1:9093,kafka-broker2:9093> \
+    KAFKA_BROKERS=<namespace>.servicebus.windows.net:9093 \
     KAFKA_SECURITY_PROTOCOL=SASL_SSL \
     KAFKA_SASL_MECHANISM=PLAIN \
-    KAFKA_USERNAME=<kafka-username> \
-    KAFKA_PASSWORD=<kafka-password> \
+    KAFKA_USERNAME='$ConnectionString' \
+    KAFKA_PASSWORD='Endpoint=sb://<namespace>.servicebus.windows.net/;SharedAccessKeyName=<policy>;SharedAccessKey=<key>' \
+    KAFKA_TOPIC_SUBSCRIPTIONS_EVENTS=subscriptions.events \
     DATABASE_URL="<postgres-connection-string>"
 ```
 

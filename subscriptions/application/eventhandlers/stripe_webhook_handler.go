@@ -7,6 +7,7 @@ import (
 
 	stripe "github.com/stripe/stripe-go/v79"
 	"github.com/stripe/stripe-go/v79/webhook"
+	"microservice-subscriptions-service/subscriptions/application/integrationevents"
 	"microservice-subscriptions-service/subscriptions/application/outboundservices"
 	"microservice-subscriptions-service/subscriptions/domain/model/valueobjects"
 	domainrepo "microservice-subscriptions-service/subscriptions/domain/repositories"
@@ -19,16 +20,12 @@ type StripeWebhookHandler struct {
 }
 
 type StripeWebhookTopics struct {
-	Expired string
-	Updated string
+	Events string
 }
 
 func NewStripeWebhookHandler(subscriptions domainrepo.SubscriptionRepository, events outboundservices.EventPublisher, topics StripeWebhookTopics) *StripeWebhookHandler {
-	if strings.TrimSpace(topics.Expired) == "" {
-		topics.Expired = "subscription.expired"
-	}
-	if strings.TrimSpace(topics.Updated) == "" {
-		topics.Updated = "subscription.updated"
+	if strings.TrimSpace(topics.Events) == "" {
+		topics.Events = integrationevents.DefaultSubscriptionsTopic
 	}
 	return &StripeWebhookHandler{subscriptions: subscriptions, events: events, topics: topics}
 }
@@ -71,13 +68,19 @@ func (h *StripeWebhookHandler) handleSubscriptionEvent(event stripe.Event) error
 	}
 
 	if h.events != nil {
-		payload, marshalErr := json.Marshal(subscription)
-		if marshalErr == nil {
-			switch event.Type {
-			case "customer.subscription.deleted":
-				_ = h.events.Publish(h.topics.Expired, payload)
-			case "customer.subscription.updated":
-				_ = h.events.Publish(h.topics.Updated, payload)
+		eventType := ""
+		switch event.Type {
+		case "customer.subscription.deleted":
+			eventType = integrationevents.EventTypeSubscriptionExpired
+		case "customer.subscription.updated":
+			eventType = integrationevents.EventTypeSubscriptionUpdated
+		}
+		if eventType != "" {
+			payload, marshalErr := integrationevents.MarshalSubscriptionEvent(eventType, time.Now().UTC(), subscription, map[string]any{
+				"stripeEventType": string(event.Type),
+			})
+			if marshalErr == nil {
+				_ = h.events.Publish(h.topics.Events, payload)
 			}
 		}
 	}

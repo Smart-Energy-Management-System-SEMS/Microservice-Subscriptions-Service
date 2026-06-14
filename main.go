@@ -58,9 +58,7 @@ func main() {
 		stripeServiceACL,
 		publisher,
 		commandservices.SubscriptionTopics{
-			Created:     cfg.KafkaTopicSubscriptionCreated,
-			Cancelled:   cfg.KafkaTopicSubscriptionCancelled,
-			PlanChanged: cfg.KafkaTopicSubscriptionPlanChanged,
+			Events: cfg.KafkaTopicSubscriptionsEvents,
 		},
 	)
 	subscriptionQuery := queryservices.NewSubscriptionQueryService(subRepo)
@@ -68,8 +66,7 @@ func main() {
 		subRepo,
 		publisher,
 		eventhandlers.StripeWebhookTopics{
-			Expired: cfg.KafkaTopicSubscriptionExpired,
-			Updated: cfg.KafkaTopicSubscriptionUpdated,
+			Events: cfg.KafkaTopicSubscriptionsEvents,
 		},
 	)
 
