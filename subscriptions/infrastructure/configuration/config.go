@@ -81,8 +81,16 @@ func Load() AppConfig {
 	cfg.KafkaBootstrapServer = kafkaBrokers
 	cfg.KafkaBrokers = splitCSV(kafkaBrokers)
 	cfg.KafkaClientID = firstNonEmpty(os.Getenv("KAFKA_CLIENT_ID"), remote.KafkaClientID, "subscriptions-service")
-	cfg.KafkaUsername = firstNonEmpty(os.Getenv("KAFKA_USERNAME"), remote.KafkaUsername)
-	cfg.KafkaPassword = firstNonEmpty(os.Getenv("KAFKA_PASSWORD"), remote.KafkaPassword)
+	cfg.KafkaUsername = firstNonEmpty(
+		os.Getenv("KAFKA_USERNAME"),
+		os.Getenv("KAFKA_SASL_USERNAME"),
+		remote.KafkaUsername,
+	)
+	cfg.KafkaPassword = firstNonEmpty(
+		os.Getenv("KAFKA_PASSWORD"),
+		os.Getenv("KAFKA_SASL_PASSWORD"),
+		remote.KafkaPassword,
+	)
 	cfg.KafkaSecurityProto = firstNonEmpty(os.Getenv("KAFKA_SECURITY_PROTOCOL"), remote.KafkaSecurityProto, "PLAINTEXT")
 	cfg.KafkaSASLMechanism = firstNonEmpty(os.Getenv("KAFKA_SASL_MECHANISM"), remote.KafkaSASLMechanism)
 	cfg.KafkaCACert = firstNonEmpty(os.Getenv("KAFKA_CA_CERT"), remote.KafkaCACert)

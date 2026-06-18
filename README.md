@@ -7,6 +7,26 @@ Microservicio de SEMS para administrar planes y ciclo de vida de suscripciones.
 - `GET /api/v1/health`
 - `GET /health`
 
+## Swagger
+
+- `GET /swagger/index.html`
+- `GET /swagger/doc.json`
+
+Flujo recomendado para validar desde Swagger:
+- Consultar los planes fijos con `GET /api/v1/subscription-plans`
+- Crear una suscripcion con `POST /api/v1/subscriptions`
+- Consultar con `GET /api/v1/subscriptions/{subscriptionId}`
+- Probar cambio de plan o cancelacion con los `PATCH`
+
+Nota:
+- Este micro no crea planes por API. El catalogo permitido es fijo y se mantiene con `Free`, `Plus` y `Pro`.
+
+## Entornos locales listos
+
+- `.env`: Azure Event Hubs activo por defecto
+- `.env.local.azure`: copia lista para Azure Event Hubs
+- `.env.local.kafka`: copia lista para Kafka local en `localhost:9092`
+
 ## Variables requeridas
 
 ```env

@@ -22,6 +22,15 @@ import (
 
 func main() {
 	cfg := appconfig.Load()
+	if cfg.KafkaEnabled {
+		log.Printf(
+			"Kafka publisher config: brokers=%s security_protocol=%s sasl_mechanism=%s username=%q",
+			strings.Join(cfg.KafkaBrokers, ","),
+			cfg.KafkaSecurityProto,
+			cfg.KafkaSASLMechanism,
+			cfg.KafkaUsername,
+		)
+	}
 	db, err := dbconfig.NewDatabase(cfg.DatabaseURL)
 	if err != nil {
 		log.Fatal(fmt.Errorf("database connection failed: %w", err))
