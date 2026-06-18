@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/google/uuid"
 	"microservice-subscriptions-service/subscriptions/domain/model/entities"
 )
 
@@ -19,7 +20,7 @@ const (
 
 type SubscriptionEvent struct {
 	EventType  string         `json:"eventType"`
-	UserID     string         `json:"userId"`
+	EventID    string         `json:"eventId"`
 	OccurredAt time.Time      `json:"occurredAt"`
 	Data       map[string]any `json:"data"`
 }
@@ -47,7 +48,7 @@ func MarshalSubscriptionEvent(eventType string, occurredAt time.Time, subscripti
 
 	return json.Marshal(SubscriptionEvent{
 		EventType:  eventType,
-		UserID:     subscription.UserID,
+		EventID:    uuid.NewString(),
 		OccurredAt: occurredAt.UTC(),
 		Data:       data,
 	})

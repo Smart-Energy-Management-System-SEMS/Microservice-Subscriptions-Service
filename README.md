@@ -90,10 +90,11 @@ Formato del evento:
 ```json
 {
   "eventType": "subscription.created",
-  "userId": "user-123",
+  "eventId": "550e8400-e29b-41d4-a716-446655440000",
   "occurredAt": "2026-06-12T22:30:00Z",
   "data": {
     "subscriptionId": "sub-123",
+    "userId": "user-123",
     "planId": "plan-456",
     "status": "ACTIVE",
     "requiresPayment": true,
@@ -101,6 +102,10 @@ Formato del evento:
   }
 }
 ```
+
+Notas de contrato:
+- El topic fisico de publicacion es solo `subscriptions.events`.
+- `eventType` identifica el tipo de evento dentro del envelope y no se usa como topic fisico.
 
 ## Ejemplo Azure Container Apps
 

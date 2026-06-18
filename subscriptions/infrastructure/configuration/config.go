@@ -32,7 +32,6 @@ type AppConfig struct {
 	KafkaBootstrapServer          string
 	KafkaBrokers                  []string
 	KafkaClientID                 string
-	KafkaConsumerGroup            string
 	KafkaUsername                 string
 	KafkaPassword                 string
 	KafkaSecurityProto            string
@@ -82,7 +81,6 @@ func Load() AppConfig {
 	cfg.KafkaBootstrapServer = kafkaBrokers
 	cfg.KafkaBrokers = splitCSV(kafkaBrokers)
 	cfg.KafkaClientID = firstNonEmpty(os.Getenv("KAFKA_CLIENT_ID"), remote.KafkaClientID, "subscriptions-service")
-	cfg.KafkaConsumerGroup = firstNonEmpty(os.Getenv("KAFKA_CONSUMER_GROUP"), remote.KafkaConsumerGroup, "subscriptions-service")
 	cfg.KafkaUsername = firstNonEmpty(os.Getenv("KAFKA_USERNAME"), remote.KafkaUsername)
 	cfg.KafkaPassword = firstNonEmpty(os.Getenv("KAFKA_PASSWORD"), remote.KafkaPassword)
 	cfg.KafkaSecurityProto = firstNonEmpty(os.Getenv("KAFKA_SECURITY_PROTOCOL"), remote.KafkaSecurityProto, "PLAINTEXT")
@@ -92,11 +90,6 @@ func Load() AppConfig {
 	cfg.KafkaTopicSubscriptionsEvents = firstNonEmpty(
 		os.Getenv("KAFKA_TOPIC_SUBSCRIPTIONS_EVENTS"),
 		remote.KafkaTopicSubscriptionsEvents,
-		os.Getenv("KAFKA_TOPIC_SUBSCRIPTION_CREATED"),
-		os.Getenv("KAFKA_TOPIC_SUBSCRIPTION_CANCELLED"),
-		os.Getenv("KAFKA_TOPIC_SUBSCRIPTION_PLAN_CHANGED"),
-		os.Getenv("KAFKA_TOPIC_SUBSCRIPTION_EXPIRED"),
-		os.Getenv("KAFKA_TOPIC_SUBSCRIPTION_UPDATED"),
 		"subscriptions.events",
 	)
 
@@ -214,7 +207,6 @@ type remoteConfig struct {
 	KafkaBootstrapServer          string   `json:"kafkaBootstrapServers"`
 	KafkaBrokers                  []string `json:"kafkaBrokers"`
 	KafkaClientID                 string   `json:"kafkaClientId"`
-	KafkaConsumerGroup            string   `json:"kafkaConsumerGroup"`
 	KafkaUsername                 string   `json:"kafkaUsername"`
 	KafkaPassword                 string   `json:"kafkaPassword"`
 	KafkaSecurityProto            string   `json:"kafkaSecurityProtocol"`
@@ -358,7 +350,6 @@ func mergeRemoteConfig(target *remoteConfig, source remoteConfig) {
 		target.KafkaBrokers = source.KafkaBrokers
 	}
 	target.KafkaClientID = firstNonEmpty(source.KafkaClientID, target.KafkaClientID)
-	target.KafkaConsumerGroup = firstNonEmpty(source.KafkaConsumerGroup, target.KafkaConsumerGroup)
 	target.KafkaUsername = firstNonEmpty(source.KafkaUsername, target.KafkaUsername)
 	target.KafkaPassword = firstNonEmpty(source.KafkaPassword, target.KafkaPassword)
 	target.KafkaSecurityProto = firstNonEmpty(source.KafkaSecurityProto, target.KafkaSecurityProto)
@@ -385,7 +376,6 @@ func isRemoteConfigEmpty(cfg remoteConfig) bool {
 		strings.TrimSpace(cfg.KafkaBootstrapServer) == "" &&
 		len(cfg.KafkaBrokers) == 0 &&
 		strings.TrimSpace(cfg.KafkaClientID) == "" &&
-		strings.TrimSpace(cfg.KafkaConsumerGroup) == "" &&
 		strings.TrimSpace(cfg.KafkaUsername) == "" &&
 		strings.TrimSpace(cfg.KafkaPassword) == "" &&
 		strings.TrimSpace(cfg.KafkaSecurityProto) == "" &&
