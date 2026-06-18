@@ -85,6 +85,10 @@ Eventos publicados dentro del payload:
 - `subscription.expired`
 - `subscription.updated`
 
+Aclaracion importante:
+- El micro no publica `SubscriptionCreated` como nombre de evento en Kafka.
+- El valor real del campo `eventType` es `subscription.created` y variantes equivalentes en minusculas para los otros eventos.
+
 Formato del evento:
 
 ```json
@@ -106,6 +110,7 @@ Formato del evento:
 Notas de contrato:
 - El topic fisico de publicacion es solo `subscriptions.events`.
 - `eventType` identifica el tipo de evento dentro del envelope y no se usa como topic fisico.
+- Si alguna documentacion previa mencionaba `SubscriptionCreated`, debe leerse como desactualizada para este servicio.
 
 ## Ejemplo Azure Container Apps
 
