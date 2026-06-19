@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"microservice-subscriptions-service/subscriptions"
@@ -21,6 +22,15 @@ import (
 
 func main() {
 	cfg := appconfig.Load()
+	if cfg.KafkaEnabled {
+		log.Printf(
+			"Kafka publisher config: brokers=%s security_protocol=%s sasl_mechanism=%s username=%q",
+			strings.Join(cfg.KafkaBrokers, ","),
+			cfg.KafkaSecurityProto,
+			cfg.KafkaSASLMechanism,
+			cfg.KafkaUsername,
+		)
+	}
 	db, err := dbconfig.NewDatabase(cfg.DatabaseURL)
 	if err != nil {
 		log.Fatal(fmt.Errorf("database connection failed: %w", err))
@@ -57,9 +67,7 @@ func main() {
 		stripeServiceACL,
 		publisher,
 		commandservices.SubscriptionTopics{
-			Created:     cfg.KafkaTopicSubscriptionCreated,
-			Cancelled:   cfg.KafkaTopicSubscriptionCancelled,
-			PlanChanged: cfg.KafkaTopicSubscriptionPlanChanged,
+			Events: cfg.KafkaTopicSubscriptionsEvents,
 		},
 	)
 	subscriptionQuery := queryservices.NewSubscriptionQueryService(subRepo)
@@ -67,17 +75,23 @@ func main() {
 		subRepo,
 		publisher,
 		eventhandlers.StripeWebhookTopics{
-			Expired: cfg.KafkaTopicSubscriptionExpired,
-			Updated: cfg.KafkaTopicSubscriptionUpdated,
+			Events: cfg.KafkaTopicSubscriptionsEvents,
 		},
 	)
 
 	controller := controllers.NewSubscriptionController(planCommand, planQuery, subscriptionCommand, subscriptionQuery, stripeWebhookHandler, cfg.StripeWebhookSecret)
 	r := gin.Default()
 	r.SetTrustedProxies(nil)
+	allowedOrigins := make(map[string]struct{}, len(cfg.AllowedOrigins))
+	for _, origin := range cfg.AllowedOrigins {
+		trimmedOrigin := strings.TrimSpace(origin)
+		if trimmedOrigin != "" {
+			allowedOrigins[trimmedOrigin] = struct{}{}
+		}
+	}
 	r.Use(func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
-		if origin == "http://localhost:3000" || origin == "http://localhost:5173" {
+		if _, ok := allowedOrigins[origin]; ok {
 			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
 		}
 		c.Writer.Header().Set("Vary", "Origin")

@@ -6,6 +6,8 @@ import (
 )
 
 func RegisterRoutes(r *gin.Engine, c *controllers.SubscriptionController) {
+	RegisterDocsRoutes(r)
+
 	r.GET("/health", func(ctx *gin.Context) {
 		ctx.JSON(200, gin.H{"status": "ok"})
 	})
@@ -19,9 +21,6 @@ func RegisterRoutes(r *gin.Engine, c *controllers.SubscriptionController) {
 		{
 			plans.GET("", c.GetPlans)
 			plans.GET("/:planId", c.GetPlanByID)
-			plans.POST("", c.CreatePlan)
-			plans.PUT("/:planId", c.UpdatePlan)
-			plans.PATCH("/:planId/deactivate", c.DeactivatePlan)
 		}
 
 		subs := v1.Group("/subscriptions")

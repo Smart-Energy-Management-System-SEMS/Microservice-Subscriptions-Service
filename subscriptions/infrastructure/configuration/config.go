@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/url"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -15,33 +15,30 @@ import (
 )
 
 type AppConfig struct {
-	ServiceName          string
-	ConfigServiceURL     string
-	ConfigServiceTimeout time.Duration
-	ServerPort           string
-	DatabaseURL          string
-	StripePublishableKey string
-	StripeSecretKey      string
-	StripeWebhookSecret  string
-	StripeCurrency       string
-	StripePriceFree      string
-	StripePricePlus      string
-	StripePricePro       string
-	KafkaEnabled         bool
-	KafkaBootstrapServer string
-	KafkaBrokers         []string
-	KafkaClientID        string
-	KafkaUsername        string
-	KafkaPassword        string
-	KafkaSecurityProto   string
-	KafkaSASLMechanism   string
-	KafkaCACert          string
-	KafkaCACertPath      string
-	KafkaTopicSubscriptionCreated     string
-	KafkaTopicSubscriptionCancelled   string
-	KafkaTopicSubscriptionPlanChanged string
-	KafkaTopicSubscriptionExpired     string
-	KafkaTopicSubscriptionUpdated     string
+	ServiceName                   string
+	ConfigServiceURL              string
+	ConfigServiceTimeout          time.Duration
+	ServerPort                    string
+	AllowedOrigins                []string
+	DatabaseURL                   string
+	StripePublishableKey          string
+	StripeSecretKey               string
+	StripeWebhookSecret           string
+	StripeCurrency                string
+	StripePriceFree               string
+	StripePricePlus               string
+	StripePricePro                string
+	KafkaEnabled                  bool
+	KafkaBootstrapServer          string
+	KafkaBrokers                  []string
+	KafkaClientID                 string
+	KafkaUsername                 string
+	KafkaPassword                 string
+	KafkaSecurityProto            string
+	KafkaSASLMechanism            string
+	KafkaCACert                   string
+	KafkaCACertPath               string
+	KafkaTopicSubscriptionsEvents string
 }
 
 func Load() AppConfig {
@@ -57,8 +54,21 @@ func Load() AppConfig {
 	if databaseURL == "" {
 		databaseURL = buildPostgresURLFromEnv()
 	}
+	allowedOrigins := firstNonEmpty(
+		os.Getenv("CORS_ALLOWED_ORIGINS"),
+		os.Getenv("ALLOWED_ORIGINS"),
+		remote.AllowedOrigins,
+		"http://localhost:3000,http://localhost:5173",
+	)
+	kafkaBrokers := firstNonEmpty(
+		os.Getenv("KAFKA_BROKERS"),
+		os.Getenv("KAFKA_BOOTSTRAP_SERVERS"),
+		strings.Join(remote.KafkaBrokers, ","),
+		remote.KafkaBootstrapServer,
+	)
 
-	cfg.ServerPort = firstNonEmpty(os.Getenv("PORT"), os.Getenv("SERVER_PORT"), remote.ServerPort, "8081")
+	cfg.ServerPort = firstNonEmpty(os.Getenv("PORT"), os.Getenv("SERVER_PORT"), remote.ServerPort, "8080")
+	cfg.AllowedOrigins = splitCSV(allowedOrigins)
 	cfg.DatabaseURL = firstNonEmpty(databaseURL, remote.DatabaseURL)
 	cfg.StripePublishableKey = firstNonEmpty(os.Getenv("STRIPE_PUBLISHABLE_KEY"), remote.StripePublishableKey)
 	cfg.StripeSecretKey = firstNonEmpty(os.Getenv("STRIPE_SECRET_KEY"), remote.StripeSecretKey)
@@ -68,49 +78,27 @@ func Load() AppConfig {
 	cfg.StripePricePlus = firstNonEmpty(os.Getenv("STRIPE_PRICE_PLUS"), remote.StripePricePlus)
 	cfg.StripePricePro = firstNonEmpty(os.Getenv("STRIPE_PRICE_PRO"), remote.StripePricePro)
 	cfg.KafkaEnabled = getEnvAsBoolWithFallback("KAFKA_ENABLED", remote.KafkaEnabled, true)
-	cfg.KafkaBootstrapServer = firstNonEmpty(
-		os.Getenv("KAFKA_BOOTSTRAP_SERVERS"),
-		os.Getenv("KAFKA_BROKERS"),
-		remote.KafkaBootstrapServer,
-		"localhost:9092",
-	)
-	cfg.KafkaBrokers = splitCSV(firstNonEmpty(
-		os.Getenv("KAFKA_BROKERS"),
-		os.Getenv("KAFKA_BOOTSTRAP_SERVERS"),
-		strings.Join(remote.KafkaBrokers, ","),
-		"localhost:9092",
-	))
+	cfg.KafkaBootstrapServer = kafkaBrokers
+	cfg.KafkaBrokers = splitCSV(kafkaBrokers)
 	cfg.KafkaClientID = firstNonEmpty(os.Getenv("KAFKA_CLIENT_ID"), remote.KafkaClientID, "subscriptions-service")
-	cfg.KafkaUsername = firstNonEmpty(os.Getenv("KAFKA_USERNAME"), remote.KafkaUsername)
-	cfg.KafkaPassword = firstNonEmpty(os.Getenv("KAFKA_PASSWORD"), remote.KafkaPassword)
+	cfg.KafkaUsername = firstNonEmpty(
+		os.Getenv("KAFKA_USERNAME"),
+		os.Getenv("KAFKA_SASL_USERNAME"),
+		remote.KafkaUsername,
+	)
+	cfg.KafkaPassword = firstNonEmpty(
+		os.Getenv("KAFKA_PASSWORD"),
+		os.Getenv("KAFKA_SASL_PASSWORD"),
+		remote.KafkaPassword,
+	)
 	cfg.KafkaSecurityProto = firstNonEmpty(os.Getenv("KAFKA_SECURITY_PROTOCOL"), remote.KafkaSecurityProto, "PLAINTEXT")
 	cfg.KafkaSASLMechanism = firstNonEmpty(os.Getenv("KAFKA_SASL_MECHANISM"), remote.KafkaSASLMechanism)
 	cfg.KafkaCACert = firstNonEmpty(os.Getenv("KAFKA_CA_CERT"), remote.KafkaCACert)
 	cfg.KafkaCACertPath = firstNonEmpty(os.Getenv("KAFKA_CA_CERT_PATH"), remote.KafkaCACertPath)
-	cfg.KafkaTopicSubscriptionCreated = firstNonEmpty(
-		os.Getenv("KAFKA_TOPIC_SUBSCRIPTION_CREATED"),
-		remote.KafkaTopicSubscriptionCreated,
-		"SubscriptionCreated",
-	)
-	cfg.KafkaTopicSubscriptionCancelled = firstNonEmpty(
-		os.Getenv("KAFKA_TOPIC_SUBSCRIPTION_CANCELLED"),
-		remote.KafkaTopicSubscriptionCancelled,
-		"SubscriptionCancelled",
-	)
-	cfg.KafkaTopicSubscriptionPlanChanged = firstNonEmpty(
-		os.Getenv("KAFKA_TOPIC_SUBSCRIPTION_PLAN_CHANGED"),
-		remote.KafkaTopicSubscriptionPlanChanged,
-		"SubscriptionPlanChanged",
-	)
-	cfg.KafkaTopicSubscriptionExpired = firstNonEmpty(
-		os.Getenv("KAFKA_TOPIC_SUBSCRIPTION_EXPIRED"),
-		remote.KafkaTopicSubscriptionExpired,
-		"SubscriptionExpired",
-	)
-	cfg.KafkaTopicSubscriptionUpdated = firstNonEmpty(
-		os.Getenv("KAFKA_TOPIC_SUBSCRIPTION_UPDATED"),
-		remote.KafkaTopicSubscriptionUpdated,
-		"SubscriptionUpdated",
+	cfg.KafkaTopicSubscriptionsEvents = firstNonEmpty(
+		os.Getenv("KAFKA_TOPIC_SUBSCRIPTIONS_EVENTS"),
+		remote.KafkaTopicSubscriptionsEvents,
+		"subscriptions.events",
 	)
 
 	return cfg
@@ -213,30 +201,27 @@ func getEnvAsDurationMS(key string, defaultMS int) time.Duration {
 }
 
 type remoteConfig struct {
-	ServerPort string `json:"serverPort"`
-	DatabaseURL string `json:"databaseUrl"`
-	StripePublishableKey string `json:"stripePublishableKey"`
-	StripeSecretKey string `json:"stripeSecretKey"`
-	StripeWebhookSecret string `json:"stripeWebhookSecret"`
-	StripeCurrency string `json:"stripeCurrency"`
-	StripePriceFree string `json:"stripePriceFree"`
-	StripePricePlus string `json:"stripePricePlus"`
-	StripePricePro string `json:"stripePricePro"`
-	KafkaEnabled *bool `json:"kafkaEnabled"`
-	KafkaBootstrapServer string `json:"kafkaBootstrapServers"`
-	KafkaBrokers []string `json:"kafkaBrokers"`
-	KafkaClientID string `json:"kafkaClientId"`
-	KafkaUsername string `json:"kafkaUsername"`
-	KafkaPassword string `json:"kafkaPassword"`
-	KafkaSecurityProto string `json:"kafkaSecurityProtocol"`
-	KafkaSASLMechanism string `json:"kafkaSaslMechanism"`
-	KafkaCACert string `json:"kafkaCaCert"`
-	KafkaCACertPath string `json:"kafkaCaCertPath"`
-	KafkaTopicSubscriptionCreated string `json:"topicSubscriptionCreated"`
-	KafkaTopicSubscriptionCancelled string `json:"topicSubscriptionCancelled"`
-	KafkaTopicSubscriptionPlanChanged string `json:"topicSubscriptionPlanChanged"`
-	KafkaTopicSubscriptionExpired string `json:"topicSubscriptionExpired"`
-	KafkaTopicSubscriptionUpdated string `json:"topicSubscriptionUpdated"`
+	ServerPort                    string   `json:"serverPort"`
+	AllowedOrigins                string   `json:"allowedOrigins"`
+	DatabaseURL                   string   `json:"databaseUrl"`
+	StripePublishableKey          string   `json:"stripePublishableKey"`
+	StripeSecretKey               string   `json:"stripeSecretKey"`
+	StripeWebhookSecret           string   `json:"stripeWebhookSecret"`
+	StripeCurrency                string   `json:"stripeCurrency"`
+	StripePriceFree               string   `json:"stripePriceFree"`
+	StripePricePlus               string   `json:"stripePricePlus"`
+	StripePricePro                string   `json:"stripePricePro"`
+	KafkaEnabled                  *bool    `json:"kafkaEnabled"`
+	KafkaBootstrapServer          string   `json:"kafkaBootstrapServers"`
+	KafkaBrokers                  []string `json:"kafkaBrokers"`
+	KafkaClientID                 string   `json:"kafkaClientId"`
+	KafkaUsername                 string   `json:"kafkaUsername"`
+	KafkaPassword                 string   `json:"kafkaPassword"`
+	KafkaSecurityProto            string   `json:"kafkaSecurityProtocol"`
+	KafkaSASLMechanism            string   `json:"kafkaSaslMechanism"`
+	KafkaCACert                   string   `json:"kafkaCaCert"`
+	KafkaCACertPath               string   `json:"kafkaCaCertPath"`
+	KafkaTopicSubscriptionsEvents string   `json:"topicSubscriptionsEvents"`
 }
 
 func fetchRemoteConfig(configServiceURL, serviceName string, timeout time.Duration) remoteConfig {
@@ -359,6 +344,7 @@ func parseRemoteConfigBody(body []byte) remoteConfig {
 
 func mergeRemoteConfig(target *remoteConfig, source remoteConfig) {
 	target.ServerPort = firstNonEmpty(source.ServerPort, target.ServerPort)
+	target.AllowedOrigins = firstNonEmpty(source.AllowedOrigins, target.AllowedOrigins)
 	target.DatabaseURL = firstNonEmpty(source.DatabaseURL, target.DatabaseURL)
 	target.StripePublishableKey = firstNonEmpty(source.StripePublishableKey, target.StripePublishableKey)
 	target.StripeSecretKey = firstNonEmpty(source.StripeSecretKey, target.StripeSecretKey)
@@ -378,11 +364,7 @@ func mergeRemoteConfig(target *remoteConfig, source remoteConfig) {
 	target.KafkaSASLMechanism = firstNonEmpty(source.KafkaSASLMechanism, target.KafkaSASLMechanism)
 	target.KafkaCACert = firstNonEmpty(source.KafkaCACert, target.KafkaCACert)
 	target.KafkaCACertPath = firstNonEmpty(source.KafkaCACertPath, target.KafkaCACertPath)
-	target.KafkaTopicSubscriptionCreated = firstNonEmpty(source.KafkaTopicSubscriptionCreated, target.KafkaTopicSubscriptionCreated)
-	target.KafkaTopicSubscriptionCancelled = firstNonEmpty(source.KafkaTopicSubscriptionCancelled, target.KafkaTopicSubscriptionCancelled)
-	target.KafkaTopicSubscriptionPlanChanged = firstNonEmpty(source.KafkaTopicSubscriptionPlanChanged, target.KafkaTopicSubscriptionPlanChanged)
-	target.KafkaTopicSubscriptionExpired = firstNonEmpty(source.KafkaTopicSubscriptionExpired, target.KafkaTopicSubscriptionExpired)
-	target.KafkaTopicSubscriptionUpdated = firstNonEmpty(source.KafkaTopicSubscriptionUpdated, target.KafkaTopicSubscriptionUpdated)
+	target.KafkaTopicSubscriptionsEvents = firstNonEmpty(source.KafkaTopicSubscriptionsEvents, target.KafkaTopicSubscriptionsEvents)
 	if source.KafkaEnabled != nil {
 		target.KafkaEnabled = source.KafkaEnabled
 	}
@@ -390,6 +372,7 @@ func mergeRemoteConfig(target *remoteConfig, source remoteConfig) {
 
 func isRemoteConfigEmpty(cfg remoteConfig) bool {
 	return strings.TrimSpace(cfg.ServerPort) == "" &&
+		strings.TrimSpace(cfg.AllowedOrigins) == "" &&
 		strings.TrimSpace(cfg.DatabaseURL) == "" &&
 		strings.TrimSpace(cfg.StripePublishableKey) == "" &&
 		strings.TrimSpace(cfg.StripeSecretKey) == "" &&
@@ -407,10 +390,6 @@ func isRemoteConfigEmpty(cfg remoteConfig) bool {
 		strings.TrimSpace(cfg.KafkaSASLMechanism) == "" &&
 		strings.TrimSpace(cfg.KafkaCACert) == "" &&
 		strings.TrimSpace(cfg.KafkaCACertPath) == "" &&
-		strings.TrimSpace(cfg.KafkaTopicSubscriptionCreated) == "" &&
-		strings.TrimSpace(cfg.KafkaTopicSubscriptionCancelled) == "" &&
-		strings.TrimSpace(cfg.KafkaTopicSubscriptionPlanChanged) == "" &&
-		strings.TrimSpace(cfg.KafkaTopicSubscriptionExpired) == "" &&
-		strings.TrimSpace(cfg.KafkaTopicSubscriptionUpdated) == "" &&
+		strings.TrimSpace(cfg.KafkaTopicSubscriptionsEvents) == "" &&
 		cfg.KafkaEnabled == nil
 }

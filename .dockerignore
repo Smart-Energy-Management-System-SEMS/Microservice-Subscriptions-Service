@@ -1,9 +1,11 @@
 .git
 .idea
+.gocache
 .env
 .env.*
 !.env.example
 bin
+scripts
 *.exe
 *.dll
 *.so

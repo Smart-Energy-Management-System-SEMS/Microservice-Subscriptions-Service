@@ -18,7 +18,8 @@ RUN apk add --no-cache ca-certificates tzdata \
 WORKDIR /app
 COPY --from=builder /out/subscriptions-service /app/subscriptions-service
 
-USER appuser
-EXPOSE 8081
+ENV PORT=8080
+EXPOSE 8080
 
+USER appuser
 CMD ["/app/subscriptions-service"]
